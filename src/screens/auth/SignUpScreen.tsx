@@ -21,6 +21,7 @@ import { AddressForm } from '../../components/forms/AddressForm';
 import { Colors, Sizes } from '../../utils/constants';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { authService } from '../../services/auth';
+import { useAuthStore } from '../../stores/authStore';
 
 type SignUpScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SignUp'>;
 
@@ -51,6 +52,7 @@ interface FormErrors {
 
 export const SignUpScreen: React.FC = () => {
   const navigation = useNavigation<SignUpScreenNavigationProp>();
+  const { setUser } = useAuthStore();
   
   const [formData, setFormData] = useState<FormData>({
     fullName: '',
@@ -171,11 +173,26 @@ export const SignUpScreen: React.FC = () => {
         return;
       }
 
-      Alert.alert(
-        'Cadastro realizado!', 
-        'Sua conta foi criada com sucesso. Agora você pode fazer login.',
-        [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
-      );
+      if (data?.user) {
+        // Fazer login para garantir que a sessão esteja ativa
+        const { data: loginData, error: loginError } = await authService.signIn({
+          email: formData.email,
+          password: formData.password,
+        });
+
+        if (loginError) {
+          Alert.alert('Erro', 'Cadastro realizado, mas houve erro no login automático. Tente fazer login manualmente.');
+          return;
+        }
+
+        // Buscar dados completos do usuário
+        const { data: userData } = await authService.getCurrentUser();
+        if (userData) {
+          setUser(userData);
+          Alert.alert('Cadastro realizado!', 'Sua conta foi criada com sucesso!');
+          // Navigation will be handled automatically by AppNavigator
+        }
+      }
     } catch (error: any) {
       Alert.alert('Erro', 'Erro inesperado ao realizar cadastro');
     } finally {

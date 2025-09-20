@@ -94,8 +94,7 @@ export const LoginScreen: React.FC = () => {
         const { data: userData } = await authService.getCurrentUser();
         if (userData) {
           setUser(userData);
-          Alert.alert('Sucesso', 'Login realizado com sucesso!');
-          // TODO: Navegar para tela principal
+          // Navigation will be handled automatically by AppNavigator
         }
       }
     } catch (error: any) {

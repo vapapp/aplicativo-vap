@@ -104,20 +104,10 @@ class AuthService {
 
       log('Usuário criado na auth:', authData.user.id);
 
-      // 2. Fazer login temporário para inserir dados
-      const { data: sessionData, error: sessionError } = await supabase.auth.signInWithPassword({
-        email: userData.email,
-        password: userData.password,
-      });
-
-      if (sessionError) {
-        logError('Erro no login temporário:', sessionError);
-      }
-
-      // 3. Aguardar um pouco
+      // 2. Aguardar um pouco para a sessão se estabelecer
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // 4. Criar usuário na tabela public.users
+      // 3. Criar usuário na tabela public.users
       const { data: insertData, error: insertError } = await supabase
         .from('users')
         .insert({
@@ -143,9 +133,6 @@ class AuthService {
         logError('Erro ao inserir na tabela users:', insertError);
         throw insertError;
       }
-
-      // 5. Logout após inserção
-      await supabase.auth.signOut();
 
       log('=== CADASTRO CONCLUÍDO ===');
       return { data: authData, error: null };
