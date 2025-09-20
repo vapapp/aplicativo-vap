@@ -29,9 +29,9 @@ export const Sizes = {
   },
   
   input: {
-    sm: 32,
-    md: 40,
-    lg: 48,
+    sm: 40,
+    md: 48,
+    lg: 56,
   },
   
   // Layout

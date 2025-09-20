@@ -7,6 +7,7 @@ export default {
     icon: "./src/assets/images/icon.png",
     userInterfaceStyle: "automatic",
     assetBundlePatterns: ["**/*"],
+    scheme: "vapapp",
     ios: {
       supportsTablet: false,
       bundleIdentifier: "com.vapapp.mobile",

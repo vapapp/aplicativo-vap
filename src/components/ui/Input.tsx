@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.neutral[300],
     borderRadius: Sizes.radius.lg,
     backgroundColor: Colors.neutral[0],
-    minHeight: Sizes.input.md,
+    minHeight: Sizes.input.lg,
   },
   inputFocused: {
     borderColor: Colors.vapapp.teal,
@@ -134,6 +134,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     paddingHorizontal: Sizes.spacing.md,
+    paddingVertical: Sizes.spacing.sm,
     fontSize: Typography.fontSize.base,
     color: Colors.text.primary,
   },

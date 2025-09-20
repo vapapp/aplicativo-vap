@@ -1,5 +1,6 @@
 import { supabase } from '../supabase/client';
 import { User } from '../../types/user.types';
+import Constants from 'expo-constants';
 
 export interface SignUpData {
   email: string;
@@ -203,8 +204,15 @@ class AuthService {
     try {
       log('=== RESET PASSWORD ===');
 
+      // Para desenvolvimento com Expo, usar URL do Expo
+      const redirectTo = __DEV__ && Constants.expoConfig?.hostUri
+        ? `exp://${Constants.expoConfig.hostUri}/--/reset-password`
+        : 'vapapp://reset-password';
+
+      log('Redirect URL:', redirectTo);
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'vapapp://reset-password',
+        redirectTo,
       });
 
       if (error) {
