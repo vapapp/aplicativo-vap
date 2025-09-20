@@ -9,6 +9,8 @@ import {
   Text,
   Alert,
 } from 'react-native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
@@ -16,6 +18,9 @@ import { Typography } from '../../components/ui/Typography';
 import { ProfileSelector } from '../../components/forms/ProfileSelector';
 import { AddressForm } from '../../components/forms/AddressForm';
 import { Colors, Sizes } from '../../utils/constants';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+
+type SignUpScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SignUp'>;
 
 interface FormData {
   fullName: string;
@@ -43,6 +48,8 @@ interface FormErrors {
 }
 
 export const SignUpScreen: React.FC = () => {
+  const navigation = useNavigation<SignUpScreenNavigationProp>();
+  
   const [formData, setFormData] = useState<FormData>({
     fullName: '',
     email: '',
@@ -144,6 +151,7 @@ export const SignUpScreen: React.FC = () => {
       // TODO: Implementar cadastro com API
       console.log('Dados do cadastro:', formData);
       Alert.alert('Sucesso', 'Cadastro realizado com sucesso!');
+      navigation.navigate('Login');
     } catch (error) {
       Alert.alert('Erro', 'Erro ao realizar cadastro');
     } finally {
@@ -157,8 +165,7 @@ export const SignUpScreen: React.FC = () => {
   };
 
   const handleGoBack = () => {
-    // TODO: Implementar navegação de volta para WelcomeScreen
-    console.log('Voltar para tela de boas-vindas');
+    navigation.goBack();
   };
 
   return (

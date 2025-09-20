@@ -6,20 +6,25 @@ import {
   Image,
   Dimensions,
 } from 'react-native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
 import { Button, Typography } from '../../components/ui';
 import { Colors, Sizes } from '../../utils/constants';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+
+type WelcomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Welcome'>;
 
 const { width, height } = Dimensions.get('window');
 
 export const WelcomeScreen: React.FC = () => {
+  const navigation = useNavigation<WelcomeScreenNavigationProp>();
+
   const handleLogin = (): void => {
-    // TODO: Navegar para tela de login
-    console.log('Navegando para login');
+    navigation.navigate('Login');
   };
 
   const handleSignUp = (): void => {
-    // TODO: Navegar para tela de cadastro
-    console.log('Navegando para cadastro');
+    navigation.navigate('SignUp');
   };
 
   return (

@@ -8,10 +8,15 @@ import {
   Image,
   Dimensions,
 } from 'react-native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Typography } from '../../components/ui/Typography';
 import { Colors, Sizes } from '../../utils/constants';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+
+type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
 const { width, height } = Dimensions.get('window');
 
@@ -21,6 +26,8 @@ interface LoginFormData {
 }
 
 export const LoginScreen: React.FC = () => {
+  const navigation = useNavigation<LoginScreenNavigationProp>();
+  
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
     password: '',
@@ -57,8 +64,7 @@ export const LoginScreen: React.FC = () => {
   };
 
   const handleGoBack = () => {
-    // TODO: Voltar para WelcomeScreen
-    console.log('Voltar para tela de boas-vindas');
+    navigation.goBack();
   };
 
   return (
