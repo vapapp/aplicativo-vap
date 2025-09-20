@@ -26,16 +26,11 @@ export default {
     },
     plugins: [
       "expo-router",
-      "expo-font",
-      "expo-status-bar"
+      "expo-font"
+      // Removemos "expo-status-bar" daqui
     ],
     experiments: {
       typedRoutes: true
-    },
-    extra: {
-      router: {
-        origin: false
-      }
     }
   }
 };

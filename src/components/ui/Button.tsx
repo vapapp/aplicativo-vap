@@ -43,10 +43,19 @@ export const Button: React.FC<ButtonProps> = ({
 
   const textStyles = [
     styles.text,
-    styles[`${variant}Text`],
-    styles[`${size}Text`],
+    styles[`${variant}Text` as keyof typeof styles],
+    styles[`${size}Text` as keyof typeof styles],
     textStyle,
   ];
+
+  const getLoadingColor = () => {
+    switch (variant) {
+      case 'outline':
+        return Colors.vapapp.teal;
+      default:
+        return Colors.neutral[0];
+    }
+  };
 
   return (
     <TouchableOpacity
@@ -56,9 +65,7 @@ export const Button: React.FC<ButtonProps> = ({
       activeOpacity={0.8}
     >
       {loading ? (
-        <ActivityIndicator 
-          color={variant === 'outline' ? Colors.vapapp.teal : Colors.neutral[0]} 
-        />
+        <ActivityIndicator color={getLoadingColor()} />
       ) : (
         <Text style={textStyles}>{title}</Text>
       )}
@@ -76,10 +83,10 @@ const styles = StyleSheet.create({
   
   // Variants
   primary: {
-    backgroundColor: Colors.vapapp.teal,
+    backgroundColor: Colors.vapapp.teal, // #2A7D76
   },
   secondary: {
-    backgroundColor: Colors.vapapp.blue,
+    backgroundColor: Colors.vapapp.lightGreen, // #22C55E - novo verde
   },
   outline: {
     backgroundColor: 'transparent',

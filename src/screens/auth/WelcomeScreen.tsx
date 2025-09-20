@@ -28,15 +28,11 @@ export const WelcomeScreen: React.FC = () => {
         {/* Logo Section */}
         <View style={styles.logoSection}>
           <View style={styles.logoContainer}>
-            {/* TODO: Adicionar logo real */}
-            <View style={styles.logoPlaceholder}>
-              <Typography variant="h2" color="inverse" weight="bold">
-                VAP
-              </Typography>
-              <Typography variant="caption" color="inverse">
-                VIA AÉREA PEDIÁTRICA
-              </Typography>
-            </View>
+            <Image 
+              source={require('../../assets/images/logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
           </View>
           
           <Typography variant="h2" color="inverse" align="center" style={styles.title}>
@@ -102,19 +98,17 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     marginBottom: Sizes.spacing.xl,
-  },
-  logoPlaceholder: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: Colors.vapapp.white,
-    justifyContent: 'center',
-    alignItems: 'center',
     shadowColor: Colors.neutral[900],
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: Colors.vapapp.white,
   },
   title: {
     marginBottom: Sizes.spacing.md,

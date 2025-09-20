@@ -10,20 +10,20 @@ export const Colors = {
     900: '#123530',
   },
   
-  // Secondary Colors (Azul)
+  // Secondary Colors (Verde claro específico)
   secondary: {
-    50: '#EEF3FD',
-    100: '#DCE7FB',
-    500: '#5373D7', // Azul do VapApp
-    600: '#4862C2',
-    700: '#3D51AD',
-    800: '#324098',
-    900: '#272F83',
+    50: '#F0FDF9',
+    100: '#CCFBEF',
+    500: '#4ECBC0', // Cor exata que você pediu
+    600: '#34D399',
+    700: '#10B981',
+    800: '#059669',
+    900: '#047857',
   },
   
   // Neutral Colors
   neutral: {
-    0: '#FFFFFF', // Branco puro
+    0: '#FFFFFF',
     50: '#F9FAFB',
     100: '#F3F4F6',
     200: '#E5E7EB',
@@ -39,10 +39,9 @@ export const Colors = {
   // VapApp Specific Colors
   vapapp: {
     teal: '#2A7D76',
-    blue: '#5373D7',
+    lightGreen: '#4ECBC0', // Cor exata: #4ECBC0
     white: '#FFFFFF',
-    lightTeal: '#7DB3AE', // Versão mais clara do teal
-    lightBlue: '#8DA5E3', // Versão mais clara do azul
+    lightTeal: '#7DB3AE',
   },
   
   // Status Colors
@@ -55,7 +54,7 @@ export const Colors = {
   background: {
     primary: '#FFFFFF',
     secondary: '#F9FAFB',
-    tertiary: '#7DB3AE', // Fundo com tom da marca
+    tertiary: '#7DB3AE',
     card: '#FFFFFF',
   },
   
@@ -65,6 +64,6 @@ export const Colors = {
     secondary: '#6B7280',
     tertiary: '#9CA3AF',
     inverse: '#FFFFFF',
-    onPrimary: '#FFFFFF', // Texto sobre cor primária
+    onPrimary: '#FFFFFF',
   },
 } as const;
