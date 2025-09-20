@@ -1,4 +1,3 @@
-// src/components/forms/AddressForm.tsx
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import { Input } from '../ui/Input';
@@ -21,12 +20,14 @@ interface AddressFormProps {
   addressData: AddressData;
   onAddressChange: (data: AddressData) => void;
   errors: Record<string, string>;
+  onClearError: (field: string) => void;
 }
 
 export const AddressForm: React.FC<AddressFormProps> = ({
   addressData,
   onAddressChange,
   errors,
+  onClearError,
 }) => {
   const [isLoadingCep, setIsLoadingCep] = useState(false);
 
@@ -47,7 +48,7 @@ export const AddressForm: React.FC<AddressFormProps> = ({
         return;
       }
 
-      // Simular latitude e longitude (você pode integrar com Google Maps API)
+      // Simular latitude e longitude
       const mockLatitude = (-23.5505 + Math.random() * 0.1).toString();
       const mockLongitude = (-46.6333 + Math.random() * 0.1).toString();
 
@@ -60,6 +61,13 @@ export const AddressForm: React.FC<AddressFormProps> = ({
         latitude: mockLatitude,
         longitude: mockLongitude,
       });
+
+      // Limpar erros dos campos preenchidos automaticamente
+      onClearError('street');
+      onClearError('neighborhood');
+      onClearError('city');
+      onClearError('state');
+
     } catch (error) {
       Alert.alert('Erro', 'Erro ao buscar CEP');
     } finally {
@@ -85,35 +93,35 @@ export const AddressForm: React.FC<AddressFormProps> = ({
               ...addressData,
               cep: formatCep(text)
             })}
+            onClearError={() => onClearError('cep')}
             placeholder="00000-000"
             keyboardType="numeric"
             maxLength={9}
             error={errors.cep}
           />
         </View>
-        <Button
-          title="Buscar"
-          onPress={searchCep}
-          loading={isLoadingCep}
-          size="md"
-          style={styles.searchButton}
-        />
-      </View>
-
-      <View style={styles.row}>
-        <View style={styles.streetInput}>
-          <Input
-            label="Endereço"
-            value={addressData.street}
-            onChangeText={(text) => onAddressChange({
-              ...addressData,
-              street: text
-            })}
-            placeholder="Rua, Avenida..."
-            error={errors.street}
+        <View style={styles.searchButtonContainer}>
+          <Button
+            title="Buscar"
+            onPress={searchCep}
+            loading={isLoadingCep}
+            size="md"
+            style={styles.searchButton}
           />
         </View>
       </View>
+
+      <Input
+        label="Endereço"
+        value={addressData.street}
+        onChangeText={(text) => onAddressChange({
+          ...addressData,
+          street: text
+        })}
+        onClearError={() => onClearError('street')}
+        placeholder="Rua, Avenida..."
+        error={errors.street}
+      />
 
       <View style={styles.row}>
         <View style={styles.flex1}>
@@ -124,6 +132,7 @@ export const AddressForm: React.FC<AddressFormProps> = ({
               ...addressData,
               neighborhood: text
             })}
+            onClearError={() => onClearError('neighborhood')}
             placeholder="Bairro"
             error={errors.neighborhood}
           />
@@ -136,6 +145,7 @@ export const AddressForm: React.FC<AddressFormProps> = ({
               ...addressData,
               number: text
             })}
+            onClearError={() => onClearError('number')}
             placeholder="123"
             keyboardType="numeric"
             error={errors.number}
@@ -162,6 +172,7 @@ export const AddressForm: React.FC<AddressFormProps> = ({
               ...addressData,
               city: text
             })}
+            onClearError={() => onClearError('city')}
             placeholder="Cidade"
             error={errors.city}
           />
@@ -174,6 +185,7 @@ export const AddressForm: React.FC<AddressFormProps> = ({
               ...addressData,
               state: text.toUpperCase()
             })}
+            onClearError={() => onClearError('state')}
             placeholder="SP"
             maxLength={2}
             error={errors.state}
@@ -197,15 +209,19 @@ const styles = StyleSheet.create({
   },
   cepContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     gap: Sizes.spacing.sm,
+    marginBottom: Sizes.spacing.md,
   },
   cepInput: {
     flex: 1,
   },
+  searchButtonContainer: {
+    paddingTop: 18,
+  },
   searchButton: {
-    marginBottom: Sizes.spacing.md,
     paddingHorizontal: Sizes.spacing.lg,
+    minWidth: 80,
   },
   row: {
     flexDirection: 'row',
@@ -216,9 +232,6 @@ const styles = StyleSheet.create({
   },
   flex2: {
     flex: 2,
-  },
-  streetInput: {
-    flex: 1,
   },
   numberInput: {
     width: 80,

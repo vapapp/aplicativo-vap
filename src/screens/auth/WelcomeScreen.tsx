@@ -2,10 +2,10 @@ import React from 'react';
 import {
   View,
   StyleSheet,
-  SafeAreaView,
   Image,
   Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { Button, Typography } from '../../components/ui';

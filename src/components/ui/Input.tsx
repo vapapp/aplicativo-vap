@@ -1,4 +1,3 @@
-// src/components/ui/Input.tsx
 import React, { useState } from 'react';
 import {
   View,
@@ -20,8 +19,10 @@ interface InputProps extends Omit<TextInputProps, 'style'> {
   rightIcon?: string;
   leftIcon?: string;
   isPassword?: boolean;
-  style?: StyleProp<ViewStyle>; // Estilo para o container
-  inputStyle?: StyleProp<TextStyle>; // Estilo para o input
+  style?: StyleProp<ViewStyle>;
+  inputStyle?: StyleProp<TextStyle>;
+  onChangeText?: (text: string) => void;
+  onClearError?: () => void;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -32,6 +33,8 @@ export const Input: React.FC<InputProps> = ({
   isPassword = false,
   style,
   inputStyle,
+  onChangeText,
+  onClearError,
   ...props
 }) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -39,6 +42,14 @@ export const Input: React.FC<InputProps> = ({
 
   const togglePasswordVisibility = () => {
     setIsPasswordVisible(!isPasswordVisible);
+  };
+
+  const handleChangeText = (text: string) => {
+    // Limpar erro quando o usuário digitar
+    if (error && onClearError) {
+      onClearError();
+    }
+    onChangeText?.(text);
   };
 
   return (
@@ -67,6 +78,7 @@ export const Input: React.FC<InputProps> = ({
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           placeholderTextColor={Colors.neutral[400]}
+          onChangeText={handleChangeText}
           {...props}
         />
         
@@ -117,6 +129,7 @@ const styles = StyleSheet.create({
   },
   inputError: {
     borderColor: Colors.error,
+    borderWidth: 2,
   },
   input: {
     flex: 1,

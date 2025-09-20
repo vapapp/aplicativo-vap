@@ -1,14 +1,15 @@
-// src/screens/auth/SignUpScreen.tsx
 import React, { useState } from 'react';
 import {
   View,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   TouchableOpacity,
   Text,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -19,6 +20,7 @@ import { ProfileSelector } from '../../components/forms/ProfileSelector';
 import { AddressForm } from '../../components/forms/AddressForm';
 import { Colors, Sizes } from '../../utils/constants';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { authService } from '../../services/auth';
 
 type SignUpScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SignUp'>;
 
@@ -74,10 +76,17 @@ export const SignUpScreen: React.FC = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
 
+  const clearError = (field: string) => {
+    setErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors[field];
+      return newErrors;
+    });
+  };
+
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
-    // Validação dados pessoais
     if (!formData.fullName.trim()) {
       newErrors.fullName = 'Nome completo é obrigatório';
     }
@@ -102,12 +111,10 @@ export const SignUpScreen: React.FC = () => {
       newErrors.confirmPassword = 'As senhas não correspondem!';
     }
 
-    // Validação perfil
     if (!formData.profile) {
       newErrors.profile = 'Selecione um perfil';
     }
 
-    // Validação endereço
     if (!formData.address.cep.trim()) {
       newErrors.cep = 'CEP é obrigatório';
     }
@@ -148,12 +155,29 @@ export const SignUpScreen: React.FC = () => {
 
     setIsLoading(true);
     try {
-      // TODO: Implementar cadastro com API
-      console.log('Dados do cadastro:', formData);
-      Alert.alert('Sucesso', 'Cadastro realizado com sucesso!');
-      navigation.navigate('Login');
-    } catch (error) {
-      Alert.alert('Erro', 'Erro ao realizar cadastro');
+      const signUpData = {
+        email: formData.email,
+        password: formData.password,
+        name: formData.fullName,
+        phone: formData.phone,
+        profile: formData.profile as 'mae' | 'pai' | 'cuidador',
+        address: formData.address,
+      };
+
+      const { data, error } = await authService.signUp(signUpData);
+
+      if (error) {
+        Alert.alert('Erro', error);
+        return;
+      }
+
+      Alert.alert(
+        'Cadastro realizado!', 
+        'Sua conta foi criada com sucesso. Agora você pode fazer login.',
+        [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
+      );
+    } catch (error: any) {
+      Alert.alert('Erro', 'Erro inesperado ao realizar cadastro');
     } finally {
       setIsLoading(false);
     }
@@ -170,7 +194,6 @@ export const SignUpScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
           <Icon name="arrow-back" size={24} color={Colors.neutral[0]} />
@@ -181,132 +204,143 @@ export const SignUpScreen: React.FC = () => {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Dados Pessoais */}
-        <View style={styles.section}>
-          <Typography variant="subtitle" style={styles.sectionTitle}>
-            Dados pessoais
-          </Typography>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardContainer}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView 
+          style={styles.content} 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.scrollContent}
+        >
+          <View style={styles.section}>
+            <Typography variant="subtitle" style={styles.sectionTitle}>
+              Dados pessoais
+            </Typography>
 
-          <Input
-            label="Nome completo"
-            value={formData.fullName}
-            onChangeText={(text) => setFormData({ ...formData, fullName: text })}
-            placeholder="Nome completo"
-            error={errors.fullName}
-            rightIcon="person"
-          />
+            <Input
+              label="Nome completo"
+              value={formData.fullName}
+              onChangeText={(text) => setFormData({ ...formData, fullName: text })}
+              onClearError={() => clearError('fullName')}
+              placeholder="Nome completo"
+              error={errors.fullName}
+              rightIcon="person"
+            />
 
-          <Input
-            label="E-mail"
-            value={formData.email}
-            onChangeText={(text) => setFormData({ ...formData, email: text })}
-            placeholder="E-mail"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            error={errors.email}
-            rightIcon="email"
-          />
+            <Input
+              label="E-mail"
+              value={formData.email}
+              onChangeText={(text) => setFormData({ ...formData, email: text })}
+              onClearError={() => clearError('email')}
+              placeholder="E-mail"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              error={errors.email}
+              rightIcon="email"
+            />
 
-          <Input
-            label="Celular"
-            value={formData.phone}
-            onChangeText={(text) => setFormData({ 
-              ...formData, 
-              phone: formatPhone(text) 
-            })}
-            placeholder="(00) 00000-0000"
-            keyboardType="phone-pad"
-            maxLength={15}
-            error={errors.phone}
-            rightIcon="phone"
-          />
+            <Input
+              label="Celular"
+              value={formData.phone}
+              onChangeText={(text) => setFormData({ 
+                ...formData, 
+                phone: formatPhone(text) 
+              })}
+              onClearError={() => clearError('phone')}
+              placeholder="(00) 00000-0000"
+              keyboardType="phone-pad"
+              maxLength={15}
+              error={errors.phone}
+              rightIcon="phone"
+            />
 
-          <Input
-            label="Senha"
-            value={formData.password}
-            onChangeText={(text) => setFormData({ ...formData, password: text })}
-            placeholder="Senha"
-            isPassword
-            error={errors.password}
-          />
+            <Input
+              label="Senha"
+              value={formData.password}
+              onChangeText={(text) => setFormData({ ...formData, password: text })}
+              onClearError={() => clearError('password')}
+              placeholder="Senha"
+              isPassword
+              error={errors.password}
+            />
 
-          <Input
-            label="Confirmar senha"
-            value={formData.confirmPassword}
-            onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
-            placeholder="Confirmar senha"
-            isPassword
-            error={errors.confirmPassword}
-          />
+            <Input
+              label="Confirmar senha"
+              value={formData.confirmPassword}
+              onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
+              onClearError={() => clearError('confirmPassword')}
+              placeholder="Confirmar senha"
+              isPassword
+              error={errors.confirmPassword}
+            />
 
-          {/* Mensagens de validação da senha */}
-          {formData.password !== formData.confirmPassword && formData.confirmPassword && (
+            {formData.password !== formData.confirmPassword && formData.confirmPassword && (
+              <View style={styles.validationMessage}>
+                <Icon name="close" size={16} color={Colors.error} />
+                <Text style={styles.errorText}>As senhas não correspondem!</Text>
+              </View>
+            )}
+            
             <View style={styles.validationMessage}>
-              <Icon name="close" size={16} color={Colors.error} />
-              <Text style={styles.errorText}>As senhas não correspondem!</Text>
+              <Icon name="lock" size={16} color={Colors.text.secondary} />
+              <Text style={styles.successText}>
+                Comprimento mínimo de 6 caracteres, contendo letras maiúsculas, minúsculas e dígitos
+              </Text>
             </View>
-          )}
-          
-          <View style={styles.validationMessage}>
-            <Icon name="lock" size={16} color={Colors.text.secondary} />
-            <Text style={styles.successText}>
-              Comprimento mínimo de 6 caracteres, contendo letras maiúsculas, minúsculas e dígitos
-            </Text>
           </View>
-        </View>
 
-        {/* Seleção de Perfil */}
-        <ProfileSelector
-          selectedProfile={formData.profile}
-          onProfileSelect={(profile) => setFormData({ ...formData, profile })}
-          error={errors.profile}
-        />
+          <ProfileSelector
+            selectedProfile={formData.profile}
+            onProfileSelect={(profile) => setFormData({ ...formData, profile })}
+            error={errors.profile}
+          />
 
-        {/* Endereço */}
-        <AddressForm
-          addressData={formData.address}
-          onAddressChange={(address) => setFormData({ ...formData, address })}
-          errors={errors}
-        />
+          <AddressForm
+            addressData={formData.address}
+            onAddressChange={(address) => setFormData({ ...formData, address })}
+            errors={errors}
+            onClearError={clearError}
+          />
 
-        {/* Termos de Uso */}
-        <View style={styles.termsContainer}>
-          <TouchableOpacity
-            style={styles.checkbox}
-            onPress={() => setFormData({ 
-              ...formData, 
-              acceptTerms: !formData.acceptTerms 
-            })}
-          >
-            <View style={[
-              styles.checkboxBox,
-              formData.acceptTerms && styles.checkboxChecked
-            ]}>
-              {formData.acceptTerms && (
-                <Icon name="check" size={14} color={Colors.neutral[0]} />
-              )}
-            </View>
-            <Text style={styles.termsText}>
-              Ao continuar, você concorda com nossos{' '}
-              <Text style={styles.termsLink}>"termos de uso e política de privacidade"</Text>.
-            </Text>
-          </TouchableOpacity>
-          {errors.acceptTerms && (
-            <Text style={styles.termsError}>{errors.acceptTerms}</Text>
-          )}
-        </View>
+          <View style={styles.termsContainer}>
+            <TouchableOpacity
+              style={styles.checkbox}
+              onPress={() => setFormData({ 
+                ...formData, 
+                acceptTerms: !formData.acceptTerms 
+              })}
+            >
+              <View style={[
+                styles.checkboxBox,
+                formData.acceptTerms && styles.checkboxChecked
+              ]}>
+                {formData.acceptTerms && (
+                  <Icon name="check" size={14} color={Colors.neutral[0]} />
+                )}
+              </View>
+              <Text style={styles.termsText}>
+                Ao continuar, você concorda com nossos{' '}
+                <Text style={styles.termsLink}>"termos de uso e política de privacidade"</Text>.
+              </Text>
+            </TouchableOpacity>
+            {errors.acceptTerms && (
+              <Text style={styles.termsError}>{errors.acceptTerms}</Text>
+            )}
+          </View>
 
-        {/* Botão Cadastrar */}
-        <Button
-          title="Cadastrar"
-          onPress={handleSubmit}
-          loading={isLoading}
-          size="lg"
-          fullWidth
-          style={styles.submitButton}
-        />
-      </ScrollView>
+          <Button
+            title="Cadastrar"
+            onPress={handleSubmit}
+            loading={isLoading}
+            size="lg"
+            fullWidth
+            style={styles.submitButton}
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -330,10 +364,16 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 40,
   },
+  keyboardContainer: {
+    flex: 1,
+  },
   content: {
     flex: 1,
     paddingHorizontal: Sizes.spacing.lg,
     paddingTop: Sizes.spacing.lg,
+  },
+  scrollContent: {
+    paddingBottom: Sizes.spacing.xl,
   },
   section: {
     marginBottom: Sizes.spacing.lg,

@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import {
   View,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -14,36 +17,63 @@ import { Button } from '../../components/ui/Button';
 import { Typography } from '../../components/ui/Typography';
 import { Colors, Sizes } from '../../utils/constants';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { authService } from '../../services/auth';
 
 type ForgotPasswordScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>;
+
+interface FormErrors {
+  [key: string]: string;
+}
 
 export const ForgotPasswordScreen: React.FC = () => {
   const navigation = useNavigation<ForgotPasswordScreenNavigationProp>();
   const [email, setEmail] = useState('');
+  const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSendEmail = async () => {
+  const clearError = (field: string) => {
+    setErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors[field];
+      return newErrors;
+    });
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
+
     if (!email.trim()) {
-      Alert.alert('Erro', 'Digite seu e-mail');
-      return;
+      newErrors.email = 'E-mail é obrigatório';
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = 'E-mail inválido';
     }
 
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      Alert.alert('Erro', 'Digite um e-mail válido');
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSendEmail = async () => {
+    if (!validateForm()) {
+      Alert.alert('Erro', 'Por favor, corrija os erros no formulário');
       return;
     }
 
     setIsLoading(true);
     try {
-      // TODO: Implementar recuperação de senha com API
-      console.log('Recuperar senha para:', email);
+      const { error } = await authService.resetPassword(email);
+
+      if (error) {
+        Alert.alert('Erro', error);
+        return;
+      }
+
       Alert.alert(
         'E-mail enviado!', 
         'Enviamos um link para redefinir sua senha. Verifique sua caixa de entrada.',
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
-    } catch (error) {
-      Alert.alert('Erro', 'Erro ao enviar e-mail de recuperação');
+    } catch (error: any) {
+      Alert.alert('Erro', 'Erro inesperado ao enviar e-mail');
     } finally {
       setIsLoading(false);
     }
@@ -66,72 +96,85 @@ export const ForgotPasswordScreen: React.FC = () => {
         <View style={styles.placeholder} />
       </View>
 
-      <View style={styles.content}>
-        {/* Main Card */}
-        <View style={styles.mainCard}>
-          <Typography variant="h4" color="primary" align="center" style={styles.title}>
-            Digite seu e-mail para redefinir sua senha
-          </Typography>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardContainer}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView 
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* Main Card */}
+          <View style={styles.mainCard}>
+            <Typography variant="h4" color="primary" align="center" style={styles.title}>
+              Digite seu e-mail para redefinir sua senha
+            </Typography>
 
-          <Typography variant="body" color="secondary" align="center" style={styles.description}>
-            Enviaremos, no e-mail informado, um link para redefinir sua senha.
-          </Typography>
+            <Typography variant="body" color="secondary" align="center" style={styles.description}>
+              Enviaremos, no e-mail informado, um link para redefinir sua senha.
+            </Typography>
 
-          <Input
-            value={email}
-            onChangeText={setEmail}
-            placeholder="Seu e-mail"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            rightIcon="email"
-            style={styles.input}
-          />
+            <Input
+              value={email}
+              onChangeText={setEmail}
+              onClearError={() => clearError('email')}
+              placeholder="Seu e-mail"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              rightIcon="email"
+              style={styles.input}
+              error={errors.email}
+            />
 
-          <Button
-            title="Enviar e-mail"
-            onPress={handleSendEmail}
-            loading={isLoading}
-            size="lg"
-            fullWidth
-            variant="primary"
-            style={styles.sendButton}
-          />
-        </View>
+            <Button
+              title="Enviar e-mail"
+              onPress={handleSendEmail}
+              loading={isLoading}
+              size="lg"
+              fullWidth
+              variant="primary"
+              style={styles.sendButton}
+            />
+          </View>
 
-        {/* Help Card */}
-        <View style={styles.helpCard}>
-          <Typography variant="h4" color="primary" align="center" style={styles.helpTitle}>
-            Precisa de Ajuda?
-          </Typography>
+          {/* Help Card */}
+          <View style={styles.helpCard}>
+            <Typography variant="h4" color="primary" align="center" style={styles.helpTitle}>
+              Precisa de Ajuda?
+            </Typography>
 
-          <Typography variant="body" color="secondary" align="center" style={styles.helpDescription}>
-            Se você não receber o e-mail em alguns minutos:
-          </Typography>
+            <Typography variant="body" color="secondary" align="center" style={styles.helpDescription}>
+              Se você não receber o e-mail em alguns minutos:
+            </Typography>
 
-          <View style={styles.helpList}>
-            <View style={styles.helpItem}>
-              <Icon name="check-circle" size={20} color={Colors.vapapp.lightGreen} />
-              <Typography variant="body" color="secondary" style={styles.helpText}>
-                Verifique sua pasta de spam;
-              </Typography>
-            </View>
+            <View style={styles.helpList}>
+              <View style={styles.helpItem}>
+                <Icon name="check-circle" size={20} color={Colors.vapapp.lightGreen} />
+                <Typography variant="body" color="secondary" style={styles.helpText}>
+                  Verifique sua pasta de spam;
+                </Typography>
+              </View>
 
-            <View style={styles.helpItem}>
-              <Icon name="check-circle" size={20} color={Colors.vapapp.lightGreen} />
-              <Typography variant="body" color="secondary" style={styles.helpText}>
-                Confirme se digitou o e-mail corretamente;
-              </Typography>
-            </View>
+              <View style={styles.helpItem}>
+                <Icon name="check-circle" size={20} color={Colors.vapapp.lightGreen} />
+                <Typography variant="body" color="secondary" style={styles.helpText}>
+                  Confirme se digitou o e-mail corretamente;
+                </Typography>
+              </View>
 
-            <View style={styles.helpItem}>
-              <Icon name="check-circle" size={20} color={Colors.vapapp.lightGreen} />
-              <Typography variant="body" color="secondary" style={styles.helpText}>
-                Tente novamente em alguns minutos.
-              </Typography>
+              <View style={styles.helpItem}>
+                <Icon name="check-circle" size={20} color={Colors.vapapp.lightGreen} />
+                <Typography variant="body" color="secondary" style={styles.helpText}>
+                  Tente novamente em alguns minutos.
+                </Typography>
+              </View>
             </View>
           </View>
-        </View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -155,9 +198,16 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 40,
   },
+  keyboardContainer: {
+    flex: 1,
+  },
   content: {
     flex: 1,
     paddingHorizontal: Sizes.spacing.lg,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
     paddingVertical: Sizes.spacing.xl,
     gap: Sizes.spacing.lg,
   },
@@ -170,6 +220,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 16,
     elevation: 8,
+    marginBottom: Sizes.spacing.lg,
   },
   title: {
     marginBottom: Sizes.spacing.lg,
