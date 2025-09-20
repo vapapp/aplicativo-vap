@@ -209,8 +209,6 @@ class AuthService {
         ? `exp://${Constants.expoConfig.hostUri}/--/reset-password`
         : 'vapapp://reset-password';
 
-      log('Redirect URL:', redirectTo);
-
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo,
       });
