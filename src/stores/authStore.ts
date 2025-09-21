@@ -6,10 +6,11 @@ interface AuthState {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  
+
   // Actions
   setUser: (user: User | null) => void;
   setLoading: (loading: boolean) => void;
+  updateUser: (userData: Partial<User>) => void;
   signOut: () => Promise<void>;
   checkAuth: () => Promise<void>;
 }
@@ -26,6 +27,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   }),
 
   setLoading: (isLoading) => set({ isLoading }),
+
+  updateUser: (userData) => {
+    console.log('=== AUTH STORE UPDATE ===', { userData });
+    set((state) => {
+      const newUser = state.user ? { ...state.user, ...userData } : null;
+      console.log('=== NEW USER STATE ===', newUser);
+      return { user: newUser };
+    });
+  },
 
   signOut: async () => {
     set({ isLoading: true });

@@ -1,11 +1,18 @@
 import React from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button, Typography } from '../components/ui';
+import { ProfileCard, SectionCard, ActionButton, ResourceGrid } from '../components/common';
 import { useAuthStore } from '../stores/authStore';
 import { Colors, Sizes } from '../utils/constants';
+import type { RootStackParamList } from '../navigation/AppNavigator';
+
+type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
 export const HomeScreen: React.FC = () => {
   const { user, signOut } = useAuthStore();
+  const navigation = useNavigation<HomeScreenNavigationProp>();
 
   const handleLogout = async () => {
     try {
@@ -15,30 +22,98 @@ export const HomeScreen: React.FC = () => {
     }
   };
 
+  const handleNavigation = (screen: string) => {
+    // TODO: Implementar navegação para cada tela específica
+    Alert.alert('Navegação', `Navegar para: ${screen}`);
+  };
+
+  const handleEditProfile = () => {
+    navigation.navigate('EditProfile');
+  };
+
+  const resourcesData = [
+    {
+      title: 'Aulas',
+      iconName: 'play-circle-outline' as const,
+      onPress: () => handleNavigation('Aulas'),
+    },
+    {
+      title: 'Quiz',
+      iconName: 'school-outline' as const,
+      onPress: () => handleNavigation('Quiz'),
+    },
+    {
+      title: 'Mercado de compras',
+      iconName: 'cart-outline' as const,
+      onPress: () => handleNavigation('Mercado de compras'),
+    },
+    {
+      title: 'E-books',
+      iconName: 'book-outline' as const,
+      onPress: () => handleNavigation('E-books'),
+    },
+  ];
+
   return (
     <View style={styles.container}>
-      <View style={styles.content}>
-        <Typography variant="h2" align="center" style={styles.title}>
-          Bem-vindo!
+      {/* Header */}
+      <View style={styles.header}>
+        <Typography variant="h3" style={styles.headerTitle}>
+          Portal - pais e cuidadores
         </Typography>
-
-        <View style={styles.userInfo}>
-          <Typography variant="subtitle" color="secondary" align="center">
-            Usuário logado:
-          </Typography>
-          <Typography variant="body" align="center" style={styles.email}>
-            {user?.email}
-          </Typography>
-        </View>
-
-        <Button
-          title="Logout"
-          onPress={handleLogout}
-          variant="outline"
-          fullWidth
-          style={styles.logoutButton}
-        />
       </View>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Card de Perfil do Usuário */}
+        <ProfileCard user={user} onEditPress={handleEditProfile} />
+
+        {/* Card Gestão de Cuidados */}
+        <SectionCard title="Gestão de cuidados:">
+          <View style={styles.buttonRow}>
+            <ActionButton
+              title="Cadastrar crianças"
+              iconName="happy-outline"
+              onPress={() => handleNavigation('Cadastrar crianças')}
+            />
+            <ActionButton
+              title="Calculadora de cânulas"
+              iconName="calculator"
+              onPress={() => handleNavigation('Calculadora de cânulas')}
+            />
+          </View>
+        </SectionCard>
+
+        {/* Card Suporte */}
+        <SectionCard title="Suporte:">
+          <View style={styles.buttonRow}>
+            <ActionButton
+              title="Tirar dúvidas"
+              iconName="help-circle-outline"
+              onPress={() => handleNavigation('Tirar dúvidas')}
+            />
+            <ActionButton
+              title="Assistente vap"
+              iconName="chatbubble-outline"
+              onPress={() => handleNavigation('Assistente vap')}
+            />
+          </View>
+        </SectionCard>
+
+        {/* Card Recursos */}
+        <SectionCard title="Recursos:">
+          <ResourceGrid resources={resourcesData} />
+        </SectionCard>
+
+        {/* Botão Logout */}
+        <View style={styles.logoutContainer}>
+          <Button
+            title="Logout"
+            onPress={handleLogout}
+            variant="outline"
+            fullWidth
+          />
+        </View>
+      </ScrollView>
     </View>
   );
 };
@@ -46,31 +121,30 @@ export const HomeScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background.primary,
+    backgroundColor: '#F5F5F5',
+  },
+  header: {
+    backgroundColor: '#2A7F7E',
+    paddingTop: 60,
+    paddingBottom: 20,
+    paddingHorizontal: Sizes.spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    color: Colors.text.inverse,
+    fontWeight: '600',
   },
   content: {
     flex: 1,
-    paddingHorizontal: Sizes.spacing.xl,
-    paddingTop: Sizes.spacing['3xl'],
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: Sizes.spacing.lg,
   },
-  title: {
-    marginBottom: Sizes.spacing['3xl'],
-    color: Colors.vapapp.teal,
+  buttonRow: {
+    flexDirection: 'row',
+    gap: Sizes.spacing.md,
   },
-  userInfo: {
-    marginBottom: Sizes.spacing['3xl'],
-    padding: Sizes.spacing.xl,
-    backgroundColor: Colors.background.secondary,
-    borderRadius: Sizes.radius.lg,
-    width: '100%',
-  },
-  email: {
-    marginTop: Sizes.spacing.sm,
-    fontWeight: '600',
-  },
-  logoutButton: {
+  logoutContainer: {
     marginTop: Sizes.spacing.lg,
+    marginBottom: Sizes.spacing.xl,
   },
 });

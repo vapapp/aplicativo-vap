@@ -5,6 +5,7 @@ export interface User {
   avatar?: string;
   phone?: string;
   profession?: string;
+  profile?: 'pai' | 'mae' | 'cuidador';
   points: number;
   level: UserLevel;
   createdAt: string;

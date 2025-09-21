@@ -26,6 +26,13 @@ export interface SignInData {
   password: string;
 }
 
+export interface UpdateProfileData {
+  name?: string;
+  email?: string;
+  phone?: string;
+  avatar?: string;
+}
+
 const isDev = __DEV__;
 
 const log = (message: string, data?: any) => {
@@ -260,6 +267,191 @@ class AuthService {
     } catch (error: any) {
       logError('Erro em getCurrentUser:', error);
       return { data: null, error: error.message };
+    }
+  }
+
+  async deleteOldAvatar(currentAvatarUrl: string | null) {
+    if (!currentAvatarUrl) return;
+
+    try {
+      // Extrair o path do avatar atual da URL
+      const url = new URL(currentAvatarUrl);
+      const pathParts = url.pathname.split('/');
+      // Path será algo como: /storage/v1/object/public/user-avatars/avatars/userId/avatar_timestamp.jpg
+      const pathIndex = pathParts.indexOf('user-avatars');
+      if (pathIndex === -1) return;
+
+      const avatarPath = pathParts.slice(pathIndex + 1).join('/');
+      log('=== DELETANDO AVATAR ANTIGO ===', { avatarPath });
+
+      const { error } = await supabase.storage
+        .from('user-avatars')
+        .remove([avatarPath]);
+
+      if (error) {
+        logError('Erro ao deletar avatar antigo:', error);
+        // Não interrompe o processo se der erro ao deletar
+      } else {
+        log('=== AVATAR ANTIGO DELETADO ===', { avatarPath });
+      }
+    } catch (error: any) {
+      logError('Erro ao processar deleção do avatar antigo:', error);
+      // Não interrompe o processo
+    }
+  }
+
+  async uploadAvatar(userId: string, imageUri: string, currentAvatarUrl?: string | null) {
+    try {
+      log('=== UPLOAD AVATAR ===', { userId, imageUri, currentAvatarUrl });
+
+      // Deletar avatar antigo primeiro (se existir)
+      if (currentAvatarUrl) {
+        await this.deleteOldAvatar(currentAvatarUrl);
+      }
+
+      // Usar nome fixo para o arquivo (sempre substitui o mesmo arquivo)
+      const fileName = `avatar.jpg`;
+      const filePath = `avatars/${userId}/${fileName}`;
+
+      log('=== PATH DEBUG ===', {
+        userId,
+        filePath,
+        pathParts: filePath.split('/'),
+        userIdFromPath: filePath.split('/')[1]
+      });
+
+      // Ler o arquivo como ArrayBuffer (compatível com React Native)
+      const response = await fetch(imageUri);
+      const arrayBuffer = await response.arrayBuffer();
+
+      // Upload para o Supabase Storage (com upsert: true para substituir)
+      const { data, error } = await supabase.storage
+        .from('user-avatars')
+        .upload(filePath, arrayBuffer, {
+          contentType: 'image/jpeg',
+          upsert: true, // Substitui se já existir
+        });
+
+      if (error) {
+        logError('Erro no upload do avatar:', error);
+        throw error;
+      }
+
+      // Obter URL pública da imagem (com timestamp para evitar cache)
+      const { data: publicUrlData } = supabase.storage
+        .from('user-avatars')
+        .getPublicUrl(filePath);
+
+      // Adicionar timestamp para evitar cache do navegador
+      const finalUrl = `${publicUrlData.publicUrl}?t=${Date.now()}`;
+
+      log('=== AVATAR UPLOADED ===', { path: data.path, url: finalUrl });
+      return { url: finalUrl, error: null };
+
+    } catch (error: any) {
+      logError('=== ERRO NO UPLOAD AVATAR ===', error);
+      return { url: null, error: error.message || 'Erro no upload da imagem' };
+    }
+  }
+
+  async updateProfile(profileData: UpdateProfileData) {
+    try {
+      log('=== UPDATE PROFILE ===', profileData);
+
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      let avatarUrl = null;
+
+      // Upload da imagem se foi fornecida
+      log('=== CHECKING AVATAR ===', {
+        hasAvatar: !!profileData.avatar,
+        avatarValue: profileData.avatar,
+        isFileUri: profileData.avatar?.startsWith('file://'),
+      });
+
+      if (profileData.avatar && profileData.avatar.startsWith('file://')) {
+        // Buscar avatar atual para deletar antes de fazer upload
+        const { data: currentUserData } = await supabase
+          .from('users')
+          .select('avatar')
+          .eq('id', user.id)
+          .single();
+
+        const currentAvatar = currentUserData?.avatar || null;
+
+        const { url, error: uploadError } = await this.uploadAvatar(
+          user.id,
+          profileData.avatar,
+          currentAvatar
+        );
+
+        if (uploadError) {
+          throw new Error(`Erro no upload da imagem: ${uploadError}`);
+        }
+
+        avatarUrl = url;
+      } else if (profileData.avatar) {
+        // Se já é uma URL, manter
+        avatarUrl = profileData.avatar;
+      }
+
+      // Atualizar dados no Supabase Auth se email foi alterado
+      if (profileData.email && profileData.email !== user.email) {
+        const { error: emailError } = await supabase.auth.updateUser({
+          email: profileData.email,
+        });
+
+        if (emailError) {
+          logError('Erro ao atualizar email no auth:', emailError);
+          throw emailError;
+        }
+      }
+
+      // Preparar dados para atualização
+      const updateData: any = {
+        name: profileData.name,
+        phone: profileData.phone,
+      };
+
+      // Adicionar avatar se disponível
+      if (avatarUrl) {
+        updateData.avatar = avatarUrl;
+      }
+
+      // Atualizar dados na tabela users
+      const { data, error } = await supabase
+        .from('users')
+        .update(updateData)
+        .eq('id', user.id)
+        .select()
+        .single();
+
+      if (error) {
+        logError('Erro ao atualizar perfil:', error);
+        throw error;
+      }
+
+      log('=== PROFILE UPDATED ===', data);
+      return { data, error: null };
+
+    } catch (error: any) {
+      logError('=== ERRO NO UPDATE PROFILE ===', error);
+
+      let errorMessage = error.message || 'Erro inesperado ao atualizar perfil';
+
+      if (errorMessage.includes('duplicate key value')) {
+        errorMessage = 'Este e-mail já está em uso';
+      } else if (errorMessage.includes('Invalid email')) {
+        errorMessage = 'E-mail inválido';
+      } else if (errorMessage.includes('Erro no upload da imagem')) {
+        errorMessage = error.message;
+      }
+
+      return { data: null, error: errorMessage };
     }
   }
 
