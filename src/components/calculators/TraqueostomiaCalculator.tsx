@@ -109,11 +109,21 @@ export const TraqueostomiaCalculator: React.FC = () => {
   };
 
   const toggleUnidade = () => {
-    setUnidadeIdade(unidadeIdade === 'anos' ? 'meses' : 'anos');
+    const novaUnidade = unidadeIdade === 'anos' ? 'meses' : 'anos';
+    console.log('Mudando unidade de', unidadeIdade, 'para', novaUnidade);
+    setUnidadeIdade(novaUnidade);
+  };
+
+  const handleIdadeChange = (text: string) => {
+    // Remove qualquer caractere que não seja dígito
+    const apenasNumeros = text.replace(/[^0-9]/g, '');
+    setIdade(apenasNumeros);
   };
 
   const getUnidadeLabel = () => {
-    return unidadeIdade === 'anos' ? 'Anos' : 'Meses';
+    const label = unidadeIdade === 'anos' ? 'Anos' : 'Meses';
+    console.log('getUnidadeLabel:', unidadeIdade, '->', label);
+    return label;
   };
 
   const renderResultRow = (label: string, value: string) => (
@@ -155,8 +165,8 @@ export const TraqueostomiaCalculator: React.FC = () => {
                 <Input
                   placeholder="Ex: 5"
                   value={idade}
-                  onChangeText={setIdade}
-                  keyboardType="numeric"
+                  onChangeText={handleIdadeChange}
+                  keyboardType="number-pad"
                   style={styles.ageInput}
                 />
               </View>
@@ -166,16 +176,20 @@ export const TraqueostomiaCalculator: React.FC = () => {
                   Unidade
                 </Typography>
                 <TouchableOpacity
-                  style={styles.unitButton}
+                  style={[
+                    styles.unitButton,
+                    unidadeIdade === 'meses' && styles.unitButtonActive
+                  ]}
                   onPress={toggleUnidade}
+                  activeOpacity={0.7}
                 >
-                  <Typography variant="body" style={styles.unitText}>
-                    {getUnidadeLabel()}
+                  <Typography variant="body" style={styles.unitText} numberOfLines={1}>
+                    {unidadeIdade === 'anos' ? 'Anos' : 'Meses'}
                   </Typography>
                   <Ionicons
-                    name="chevron-down"
-                    size={20}
-                    color={Colors.neutral[600]}
+                    name="swap-horizontal"
+                    size={18}
+                    color={Colors.vapapp.teal}
                   />
                 </TouchableOpacity>
               </View>
@@ -257,36 +271,48 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Sizes.spacing.md,
     marginBottom: Sizes.spacing.lg,
+    alignItems: 'center',
   },
   ageInputContainer: {
     flex: 2,
+    justifyContent: 'flex-end',
   },
   unitContainer: {
-    flex: 1,
+    flex: 1.2,
+    justifyContent: 'flex-end',
   },
   inputLabel: {
     color: Colors.neutral[700],
     fontWeight: '600',
     marginBottom: Sizes.spacing.xs,
     marginLeft: 4,
+    height: 20, // altura fixa para garantir alinhamento
   },
   ageInput: {
     backgroundColor: Colors.neutral[50],
+    height: 48,
   },
   unitButton: {
     backgroundColor: Colors.neutral[50],
     borderRadius: Sizes.radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.neutral[200],
+    borderWidth: 2,
+    borderColor: Colors.vapapp.teal + '40', // 25% opacity
     height: 48,
-    paddingHorizontal: Sizes.spacing.md,
+    paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    minWidth: 90,
+  },
+  unitButtonActive: {
+    backgroundColor: Colors.vapapp.teal + '10', // 10% opacity
+    borderColor: Colors.vapapp.teal,
   },
   unitText: {
     color: Colors.neutral[800],
-    flex: 1,
+    fontWeight: '600',
+    fontSize: 16,
+    marginRight: 8,
   },
   calculateButton: {
     backgroundColor: Colors.vapapp.teal,
