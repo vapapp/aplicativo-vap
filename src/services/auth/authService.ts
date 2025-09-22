@@ -212,8 +212,8 @@ class AuthService {
       log('=== RESET PASSWORD ===');
 
       // Para desenvolvimento com Expo, usar URL do Expo
-      const redirectTo = __DEV__ && Constants.expoConfig?.hostUri
-        ? `exp://${Constants.expoConfig.hostUri}/--/reset-password`
+      const redirectTo = __DEV__
+        ? 'exp://192.168.0.4:8081/--/reset-password'
         : 'vapapp://reset-password';
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -452,6 +452,118 @@ class AuthService {
       }
 
       return { data: null, error: errorMessage };
+    }
+  }
+
+  async sendEmailVerification(newEmail: string) {
+    try {
+      log('=== ENVIANDO VERIFICAÇÃO DE EMAIL ===', { newEmail });
+
+      // Verificar se o email já existe
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', newEmail)
+        .single();
+
+      if (existingUser) {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        // Se é outro usuário usando este email
+        if (existingUser.id !== user?.id) {
+          return { error: 'Este e-mail já está em uso' };
+        }
+      }
+
+      // Para desenvolvimento com Expo, usar URL do Expo
+      const redirectTo = __DEV__
+        ? 'exp://192.168.0.4:8081/--/email-updated'
+        : 'vapapp://email-updated';
+
+      log('=== REDIRECT URL ===', { redirectTo });
+
+      const { error } = await supabase.auth.updateUser({
+        email: newEmail,
+      }, {
+        emailRedirectTo: redirectTo,
+      });
+
+      if (error) {
+        logError('Erro ao enviar verificação de email:', error);
+        let errorMessage = error.message;
+
+        if (errorMessage.includes('same as current')) {
+          errorMessage = 'Este e-mail já é o seu e-mail atual';
+        } else if (errorMessage.includes('duplicate') || errorMessage.includes('already') || errorMessage.includes('registered')) {
+          errorMessage = 'Este e-mail já está cadastrado por outro usuário';
+        }
+
+        return { error: errorMessage };
+      }
+
+      return { error: null };
+    } catch (error: any) {
+      logError('Erro na verificação de email:', error);
+      return { error: error.message || 'Erro ao enviar verificação de email' };
+    }
+  }
+
+  async sendPhoneVerification(phone: string) {
+    try {
+      log('=== ENVIANDO VERIFICAÇÃO DE TELEFONE ===', { phone });
+
+      // Verificar se o telefone já está em uso por outro usuário
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('phone', phone)
+        .single();
+
+      if (existingUser) {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        // Se é outro usuário usando este telefone
+        if (existingUser.id !== user?.id) {
+          return { error: 'Este telefone já está em uso' };
+        }
+      }
+
+      // Simular envio de SMS (em produção, usar Twilio ou similar)
+      // Gerar código de 6 dígitos
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+      // Em desenvolvimento, log do código (em produção, enviar SMS)
+      if (__DEV__) {
+        console.log(`=== CÓDIGO DE VERIFICAÇÃO PARA ${phone}: ${verificationCode} ===`);
+      }
+
+      // Armazenar temporariamente (em produção, usar Redis ou similar)
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
+
+      return {
+        verificationCode: __DEV__ ? verificationCode : null,
+        expiresAt,
+        error: null
+      };
+
+    } catch (error: any) {
+      logError('Erro na verificação de telefone:', error);
+      return { error: error.message || 'Erro ao enviar código de verificação' };
+    }
+  }
+
+  async verifyPhoneCode(phone: string, code: string, expectedCode: string) {
+    try {
+      log('=== VERIFICANDO CÓDIGO DO TELEFONE ===', { phone, code });
+
+      if (code !== expectedCode) {
+        return { verified: false, error: 'Código incorreto' };
+      }
+
+      return { verified: true, error: null };
+    } catch (error: any) {
+      logError('Erro na verificação do código:', error);
+      return { verified: false, error: 'Erro ao verificar código' };
     }
   }
 

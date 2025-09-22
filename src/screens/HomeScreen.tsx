@@ -78,7 +78,7 @@ export const HomeScreen: React.FC = () => {
             <ActionButton
               title="Calculadora de cânulas"
               iconName="calculator"
-              onPress={() => handleNavigation('Calculadora de cânulas')}
+              onPress={() => navigation.navigate('Traqueostomia')}
             />
           </View>
         </SectionCard>

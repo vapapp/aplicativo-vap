@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -14,7 +16,8 @@ import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import * as ImagePicker from 'expo-image-picker';
-import { Button, Typography, Input } from '../components/ui';
+import { Button, Typography, Input, Toast, ReadOnlyField } from '../components/ui';
+import { VerificationModal } from '../components/common';
 import { useAuthStore } from '../stores/authStore';
 import { authService, UpdateProfileData } from '../services/auth/authService';
 import { Colors, Sizes } from '../utils/constants';
@@ -40,11 +43,29 @@ export const EditProfileScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(user?.avatar || null);
 
+  // Estados para verificação
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [verificationType, setVerificationType] = useState<'email' | 'phone'>('email');
+  const [verificationTarget, setVerificationTarget] = useState('');
+  const [verificationCode, setVerificationCode] = useState<string | null>(null);
+  const [pendingFormData, setPendingFormData] = useState<EditProfileFormData | null>(null);
+
+  // Estados para toast
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+
+  // Estados para modo de edição
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [initialData, setInitialData] = useState<EditProfileFormData | null>(null);
+  const [hasChanges, setHasChanges] = useState(false);
+
   const {
     control,
     handleSubmit,
     formState: { errors },
     reset,
+    watch,
   } = useForm<EditProfileFormData>({
     resolver: yupResolver(schema),
     defaultValues: {
@@ -54,16 +75,60 @@ export const EditProfileScreen: React.FC = () => {
     },
   });
 
+  // Watch for changes
+  const watchedValues = watch();
+
+  // Função para formatar telefone
+  const formatPhone = (phone: string) => {
+    // Remove todos os caracteres não numéricos
+    const cleaned = phone.replace(/\D/g, '');
+
+    // Aplica a máscara (XX) XXXXX-XXXX
+    if (cleaned.length <= 2) {
+      return `(${cleaned}`;
+    } else if (cleaned.length <= 7) {
+      return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
+    } else {
+      return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7, 11)}`;
+    }
+  };
+
+  // Função para limpar telefone (remover máscara)
+  const cleanPhone = (phone: string) => {
+    return phone.replace(/\D/g, '');
+  };
+
   useEffect(() => {
     if (user) {
-      reset({
+      const userData = {
         name: user.name || '',
         email: user.email || '',
-        phone: user.phone || '',
-      });
+        phone: formatPhone(user.phone || ''),
+      };
+
+      reset(userData);
       setProfileImage(user.avatar || null);
+      setInitialData(userData);
     }
   }, [user, reset]);
+
+  // Check for changes
+  useEffect(() => {
+    if (initialData && isEditMode) {
+      const currentAvatar = profileImage || '';
+      const initialAvatar = user?.avatar || '';
+
+      const hasFormChanges =
+        watchedValues.name !== initialData.name ||
+        watchedValues.email !== initialData.email ||
+        cleanPhone(watchedValues.phone) !== cleanPhone(initialData.phone) ||
+        currentAvatar !== initialAvatar;
+
+      setHasChanges(hasFormChanges);
+    } else {
+      setHasChanges(false);
+    }
+  }, [watchedValues, initialData, profileImage, user?.avatar, isEditMode]);
 
   const pickImage = async () => {
     try {
@@ -133,6 +198,8 @@ export const EditProfileScreen: React.FC = () => {
   };
 
   const showImagePicker = () => {
+    if (!isEditMode) return;
+
     Alert.alert(
       'Selecionar foto',
       'Escolha uma opção',
@@ -144,7 +211,141 @@ export const EditProfileScreen: React.FC = () => {
     );
   };
 
+  const toggleEditMode = () => {
+    if (isEditMode && hasChanges) {
+      Alert.alert(
+        'Descartar alterações?',
+        'Você tem alterações não salvas. Deseja descartá-las?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Descartar',
+            style: 'destructive',
+            onPress: () => {
+              reset(initialData!);
+              setProfileImage(user?.avatar || null);
+              setIsEditMode(false);
+            },
+          },
+        ]
+      );
+    } else {
+      setIsEditMode(!isEditMode);
+    }
+  };
+
+  const cancelEdit = () => {
+    if (hasChanges) {
+      Alert.alert(
+        'Descartar alterações?',
+        'Você tem alterações não salvas. Deseja descartá-las?',
+        [
+          { text: 'Continuar editando', style: 'cancel' },
+          {
+            text: 'Descartar',
+            style: 'destructive',
+            onPress: () => {
+              reset(initialData!);
+              setProfileImage(user?.avatar || null);
+              setIsEditMode(false);
+            },
+          },
+        ]
+      );
+    } else {
+      setIsEditMode(false);
+    }
+  };
+
   const onSubmit = async (data: EditProfileFormData) => {
+    if (isLoading) {
+      console.log('=== JÁ ESTÁ PROCESSANDO - IGNORANDO ===');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      console.log('=== SUBMIT DATA ===', {
+        currentEmail: user?.email,
+        newEmail: data.email,
+        currentPhone: user?.phone,
+        newPhone: data.phone,
+      });
+
+      const emailChanged = data.email.toLowerCase().trim() !== user?.email?.toLowerCase().trim();
+      const phoneChanged = cleanPhone(data.phone) !== cleanPhone(user?.phone || '');
+
+      console.log('=== CHANGES DETECTED ===', { emailChanged, phoneChanged });
+
+      // Se email ou telefone mudaram, precisamos de verificação
+      if (emailChanged) {
+        setIsLoading(false);
+        setPendingFormData(data);
+        setVerificationType('email');
+        setVerificationTarget(data.email);
+
+        const { error } = await authService.sendEmailVerification(data.email);
+
+        if (error) {
+          setToastMessage(`Erro ao enviar e-mail: ${error}`);
+          setToastType('error');
+          setShowToast(true);
+          setIsLoading(false);
+          return;
+        }
+
+        // Mostrar toast de sucesso
+        setToastMessage(`E-mail de verificação enviado para ${data.email}`);
+        setToastType('success');
+        setShowToast(true);
+
+        // Salvar outros dados automaticamente (sem email)
+        setTimeout(() => {
+          saveOtherDataOnly({
+            ...data,
+            email: user?.email || '' // Manter email atual
+          });
+        }, 1000);
+        return;
+      }
+
+      if (phoneChanged) {
+        setIsLoading(false);
+        setPendingFormData(data);
+        setVerificationType('phone');
+        setVerificationTarget(data.phone);
+
+        const result = await authService.sendPhoneVerification(data.phone);
+
+        if (result.error) {
+          setToastMessage(`Erro ao enviar SMS: ${result.error}`);
+          setToastType('error');
+          setShowToast(true);
+          setIsLoading(false);
+          return;
+        }
+
+        setVerificationCode(result.verificationCode);
+        setShowVerificationModal(true);
+
+        // Mostrar toast de sucesso
+        setToastMessage(`Código enviado para ${data.phone}`);
+        setToastType('success');
+        setShowToast(true);
+        return;
+      }
+
+      // Se nenhum campo sensível mudou, atualizar diretamente
+      // O loading já está ativo, então vamos manter e processar
+      await processPendingUpdate(data);
+
+    } catch (error) {
+      Alert.alert('Erro', 'Ocorreu um erro ao processar sua solicitação. Tente novamente.');
+      setIsLoading(false);
+    }
+  };
+
+  const processPendingUpdate = async (data: EditProfileFormData) => {
     setIsLoading(true);
     try {
       const updateData: UpdateProfileData = {
@@ -167,33 +368,114 @@ export const EditProfileScreen: React.FC = () => {
         updateUser(updatedUser);
       }
 
-      Alert.alert('Sucesso', 'Perfil atualizado com sucesso!', [
-        {
-          text: 'OK',
-          onPress: () => navigation.goBack(),
-        },
-      ]);
+      setToastMessage('Perfil atualizado com sucesso!');
+      setToastType('success');
+      setShowToast(true);
+      setIsEditMode(false);
+
+      setTimeout(() => {
+        navigation.goBack();
+      }, 2000);
     } catch (error) {
       Alert.alert('Erro', 'Ocorreu um erro ao atualizar o perfil. Tente novamente.');
+    } finally {
+      setIsLoading(false);
+      setPendingFormData(null);
+    }
+  };
+
+  const handleVerification = async (code: string) => {
+    if (!pendingFormData || !verificationCode) {
+      return { verified: false, error: 'Dados de verificação não encontrados' };
+    }
+
+    if (verificationType === 'phone') {
+      const result = await authService.verifyPhoneCode(
+        verificationTarget,
+        code,
+        verificationCode
+      );
+
+      if (result.verified) {
+        setShowVerificationModal(false);
+        await processPendingUpdate(pendingFormData);
+      }
+
+      return result;
+    }
+
+    return { verified: false, error: 'Tipo de verificação não suportado' };
+  };
+
+  const saveOtherDataOnly = async (data: EditProfileFormData) => {
+    setIsLoading(true);
+    try {
+      const updateData: UpdateProfileData = {
+        name: data.name,
+        phone: data.phone, // Mantém o telefone se não mudou
+        avatar: profileImage || undefined,
+        // NÃO inclui email - será atualizado apenas após confirmação
+      };
+
+      const { data: updatedUser, error } = await authService.updateProfile(updateData);
+
+      if (error) {
+        Alert.alert('Erro', error);
+        return;
+      }
+
+      // Atualizar o store com os novos dados
+      if (updatedUser) {
+        console.log('=== UPDATING USER IN STORE (outros dados) ===', updatedUser);
+        updateUser(updatedUser);
+      }
+
+      setToastMessage('Alterações salvas! Confirme o novo e-mail pelo link enviado.');
+      setToastType('success');
+      setShowToast(true);
+      setIsEditMode(false);
+
+      setTimeout(() => {
+        navigation.goBack();
+      }, 2000);
+    } catch (error) {
+      Alert.alert('Erro', 'Ocorreu um erro ao salvar as alterações. Tente novamente.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={Colors.text.inverse} />
         </TouchableOpacity>
         <Typography variant="h3" style={styles.headerTitle}>
-          Editar Perfil
+          {isEditMode ? 'Editar Perfil' : 'Meu Perfil'}
         </Typography>
-        <View style={styles.headerSpacer} />
+        <TouchableOpacity
+          style={styles.editToggleButton}
+          onPress={toggleEditMode}
+        >
+          <Ionicons
+            name={isEditMode ? "close" : "create-outline"}
+            size={24}
+            color={Colors.text.inverse}
+          />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Avatar Section */}
         <View style={styles.avatarSection}>
           <View style={styles.avatarContainer}>
@@ -204,79 +486,111 @@ export const EditProfileScreen: React.FC = () => {
                 <Ionicons name="person" size={40} color={Colors.neutral[400]} />
               </View>
             )}
-            <TouchableOpacity style={styles.cameraButton} onPress={showImagePicker}>
-              <Ionicons name="camera" size={20} color={Colors.text.inverse} />
-            </TouchableOpacity>
+            {isEditMode && (
+              <TouchableOpacity style={styles.cameraButton} onPress={showImagePicker}>
+                <Ionicons name="camera" size={20} color={Colors.text.inverse} />
+              </TouchableOpacity>
+            )}
           </View>
-          <Typography variant="caption" style={styles.avatarLabel}>
-            Toque para alterar a foto
-          </Typography>
+          {isEditMode && (
+            <Typography variant="caption" style={styles.avatarLabel}>
+              Toque para alterar a foto
+            </Typography>
+          )}
         </View>
 
         {/* Form Section */}
         <View style={styles.formSection}>
-          <View style={styles.inputGroup}>
-            <Typography variant="caption" style={styles.inputLabel}>
-              Nome completo
-            </Typography>
-            <Controller
-              control={control}
-              name="name"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input
-                  placeholder="Digite seu nome completo"
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value}
-                  error={errors.name?.message}
-                  style={styles.input}
-                />
-              )}
+          {/* Nome */}
+          {isEditMode ? (
+            <View style={styles.inputGroup}>
+              <Typography variant="caption" style={styles.inputLabel}>
+                Nome completo
+              </Typography>
+              <Controller
+                control={control}
+                name="name"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <Input
+                    placeholder="Digite seu nome completo"
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    value={value}
+                    error={errors.name?.message}
+                    style={styles.input}
+                  />
+                )}
+              />
+            </View>
+          ) : (
+            <ReadOnlyField
+              label="Nome completo"
+              value={user?.name || ''}
             />
-          </View>
+          )}
 
-          <View style={styles.inputGroup}>
-            <Typography variant="caption" style={styles.inputLabel}>
-              E-mail
-            </Typography>
-            <Controller
-              control={control}
-              name="email"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input
-                  placeholder="Digite seu e-mail"
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value}
-                  error={errors.email?.message}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  style={styles.input}
-                />
-              )}
+          {/* Email */}
+          {isEditMode ? (
+            <View style={styles.inputGroup}>
+              <Typography variant="caption" style={styles.inputLabel}>
+                E-mail
+              </Typography>
+              <Controller
+                control={control}
+                name="email"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <Input
+                    placeholder="Digite seu e-mail"
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    value={value}
+                    error={errors.email?.message}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    style={styles.input}
+                  />
+                )}
+              />
+            </View>
+          ) : (
+            <ReadOnlyField
+              label="E-mail"
+              value={user?.email || ''}
             />
-          </View>
+          )}
 
-          <View style={styles.inputGroup}>
-            <Typography variant="caption" style={styles.inputLabel}>
-              Telefone
-            </Typography>
-            <Controller
-              control={control}
-              name="phone"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input
-                  placeholder="Digite seu telefone"
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value}
-                  error={errors.phone?.message}
-                  keyboardType="phone-pad"
-                  style={styles.input}
-                />
-              )}
+          {/* Telefone */}
+          {isEditMode ? (
+            <View style={styles.inputGroup}>
+              <Typography variant="caption" style={styles.inputLabel}>
+                Telefone
+              </Typography>
+              <Controller
+                control={control}
+                name="phone"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <Input
+                    placeholder="(00) 00000-0000"
+                    onBlur={onBlur}
+                    onChangeText={(text) => {
+                      const formatted = formatPhone(text);
+                      onChange(formatted);
+                    }}
+                    value={value}
+                    error={errors.phone?.message}
+                    keyboardType="phone-pad"
+                    style={styles.input}
+                    maxLength={15} // (XX) XXXXX-XXXX
+                  />
+                )}
+              />
+            </View>
+          ) : (
+            <ReadOnlyField
+              label="Telefone"
+              value={user?.phone || ''}
             />
-          </View>
+          )}
 
           {/* Profile Info Card */}
           <View style={styles.profileInfoCard}>
@@ -295,25 +609,60 @@ export const EditProfileScreen: React.FC = () => {
         </View>
 
         {/* Action Buttons */}
-        <View style={styles.actionSection}>
-          <Button
-            title="Salvar Alterações"
-            onPress={handleSubmit(onSubmit)}
-            loading={isLoading}
-            fullWidth
-            style={styles.saveButton}
-          />
+        {isEditMode && (
+          <View style={styles.actionSection}>
+            {hasChanges && (
+              <Button
+                title="Salvar Alterações"
+                onPress={handleSubmit(onSubmit)}
+                loading={isLoading}
+                fullWidth
+                style={styles.saveButton}
+              />
+            )}
 
-          <Button
-            title="Cancelar"
-            onPress={() => navigation.goBack()}
-            variant="outline"
-            fullWidth
-            style={styles.cancelButton}
-          />
-        </View>
+            <Button
+              title="Cancelar"
+              onPress={cancelEdit}
+              variant="outline"
+              fullWidth
+              style={styles.cancelButton}
+            />
+          </View>
+        )}
       </ScrollView>
-    </View>
+
+      {/* Modal de Verificação */}
+      <VerificationModal
+        visible={showVerificationModal}
+        onClose={() => {
+          setShowVerificationModal(false);
+          setPendingFormData(null);
+          setVerificationCode(null);
+        }}
+        onVerify={handleVerification}
+        title={
+          verificationType === 'email'
+            ? 'Verificar E-mail'
+            : 'Verificar Telefone'
+        }
+        subtitle={
+          verificationType === 'email'
+            ? 'Digite o código enviado para seu e-mail'
+            : 'Digite o código enviado via SMS'
+        }
+        type={verificationType}
+        target={verificationTarget}
+      />
+
+      {/* Toast */}
+      <Toast
+        visible={showToast}
+        message={toastMessage}
+        type={toastType}
+        onHide={() => setShowToast(false)}
+      />
+    </KeyboardAvoidingView>
   );
 };
 
@@ -338,8 +687,8 @@ const styles = StyleSheet.create({
     color: Colors.text.inverse,
     fontWeight: '600',
   },
-  headerSpacer: {
-    width: 32,
+  editToggleButton: {
+    padding: 4,
   },
   content: {
     flex: 1,

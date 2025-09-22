@@ -1,0 +1,1 @@
+export { TraqueostomiaCalculator } from './TraqueostomiaCalculator';
