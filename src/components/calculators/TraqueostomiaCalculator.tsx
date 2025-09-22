@@ -6,8 +6,9 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+import { Ionicons } from '@expo/vector-icons';
 import { Button, Typography, Input } from '../ui';
 import { Colors, Sizes } from '../../utils/constants';
 
@@ -28,6 +29,7 @@ export const TraqueostomiaCalculator: React.FC = () => {
   const [unidadeIdade, setUnidadeIdade] = useState<'meses' | 'anos'>('anos');
   const [resultado, setResultado] = useState<CalculationResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showUnidadePicker, setShowUnidadePicker] = useState(false);
 
   const calcularTuboIdadeMaior = (idade: number): string => {
     const idadeAnos = unidadeIdade === 'meses' ? idade / 12 : idade;
@@ -106,6 +108,14 @@ export const TraqueostomiaCalculator: React.FC = () => {
     setResultado(resultado);
   };
 
+  const toggleUnidade = () => {
+    setUnidadeIdade(unidadeIdade === 'anos' ? 'meses' : 'anos');
+  };
+
+  const getUnidadeLabel = () => {
+    return unidadeIdade === 'anos' ? 'Anos' : 'Meses';
+  };
+
   const renderResultRow = (label: string, value: string) => (
     <View style={styles.resultRow} key={label}>
       <Typography variant="body" style={styles.resultLabel}>
@@ -155,16 +165,19 @@ export const TraqueostomiaCalculator: React.FC = () => {
                 <Typography variant="caption" style={styles.inputLabel}>
                   Unidade
                 </Typography>
-                <View style={styles.pickerContainer}>
-                  <Picker
-                    selectedValue={unidadeIdade}
-                    onValueChange={(value) => setUnidadeIdade(value)}
-                    style={styles.picker}
-                  >
-                    <Picker.Item label="Anos" value="anos" />
-                    <Picker.Item label="Meses" value="meses" />
-                  </Picker>
-                </View>
+                <TouchableOpacity
+                  style={styles.unitButton}
+                  onPress={toggleUnidade}
+                >
+                  <Typography variant="body" style={styles.unitText}>
+                    {getUnidadeLabel()}
+                  </Typography>
+                  <Ionicons
+                    name="chevron-down"
+                    size={20}
+                    color={Colors.neutral[600]}
+                  />
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -260,17 +273,20 @@ const styles = StyleSheet.create({
   ageInput: {
     backgroundColor: Colors.neutral[50],
   },
-  pickerContainer: {
+  unitButton: {
     backgroundColor: Colors.neutral[50],
     borderRadius: Sizes.radius.lg,
     borderWidth: 1,
     borderColor: Colors.neutral[200],
     height: 48,
-    justifyContent: 'center',
+    paddingHorizontal: Sizes.spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  picker: {
-    height: 48,
+  unitText: {
     color: Colors.neutral[800],
+    flex: 1,
   },
   calculateButton: {
     backgroundColor: Colors.vapapp.teal,

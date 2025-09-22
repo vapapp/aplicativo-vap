@@ -17,7 +17,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import * as ImagePicker from 'expo-image-picker';
 import { Button, Typography, Input, Toast, ReadOnlyField } from '../components/ui';
-import { VerificationModal } from '../components/common';
+import { VerificationModal, Header } from '../components/common';
 import { useAuthStore } from '../stores/authStore';
 import { authService, UpdateProfileData } from '../services/auth/authService';
 import { Colors, Sizes } from '../utils/constants';
@@ -451,25 +451,22 @@ export const EditProfileScreen: React.FC = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text.inverse} />
-        </TouchableOpacity>
-        <Typography variant="h3" style={styles.headerTitle}>
-          {isEditMode ? 'Editar Perfil' : 'Meu Perfil'}
-        </Typography>
-        <TouchableOpacity
-          style={styles.editToggleButton}
-          onPress={toggleEditMode}
-        >
-          <Ionicons
-            name={isEditMode ? "close" : "create-outline"}
-            size={24}
-            color={Colors.text.inverse}
-          />
-        </TouchableOpacity>
-      </View>
+      <Header
+        title={isEditMode ? 'Editar Perfil' : 'Meu Perfil'}
+        showBackButton
+        rightElement={
+          <TouchableOpacity
+            style={styles.editToggleButton}
+            onPress={toggleEditMode}
+          >
+            <Ionicons
+              name={isEditMode ? "close" : "create-outline"}
+              size={24}
+              color={Colors.text.inverse}
+            />
+          </TouchableOpacity>
+        }
+      />
 
       <ScrollView
         style={styles.content}
@@ -670,22 +667,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F5F5',
-  },
-  header: {
-    backgroundColor: Colors.vapapp.teal,
-    paddingTop: 60,
-    paddingBottom: 20,
-    paddingHorizontal: Sizes.spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    color: Colors.text.inverse,
-    fontWeight: '600',
   },
   editToggleButton: {
     padding: 4,
