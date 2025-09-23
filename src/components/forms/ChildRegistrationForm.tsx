@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -375,6 +375,9 @@ interface ChildRegistrationFormProps {
 export const ChildRegistrationForm: React.FC<ChildRegistrationFormProps> = ({
   onSubmit,
 }) => {
+  // Referência para controle do ScrollView
+  const scrollViewRef = useRef<ScrollView>(null);
+
   const [currentSection, setCurrentSection] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [completedSections, setCompletedSections] = useState<number[]>([]);
@@ -403,6 +406,8 @@ export const ChildRegistrationForm: React.FC<ChildRegistrationFormProps> = ({
     trigger,
     getValues,
     reset,
+    setError,
+    clearErrors,
   } = useForm<ChildFormData>({
     mode: 'onChange',
     defaultValues: {
@@ -461,19 +466,87 @@ export const ChildRegistrationForm: React.FC<ChildRegistrationFormProps> = ({
 
   // Função para carregar dados de uma seção específica
   const loadSectionDataOnce = (section: number) => {
-    // Temporariamente, não carregar dados da seção 2 para permitir digitação livre
-    if (section === 2) {
-      console.log(`LoadOnce: Pulando carregamento da seção 2 para permitir digitação`);
-      return;
-    }
-
     const sectionData = sectionsData[section];
     console.log(`LoadOnce: Carregando dados da seção ${section}:`, sectionData);
+
     if (sectionData) {
+      // Carregar dados de forma robusta, garantindo que todos os campos sejam devidamente preenchidos
       Object.keys(sectionData).forEach(key => {
-        setValue(key as any, (sectionData as any)[key]);
-        console.log(`LoadOnce: Definindo ${key} = ${(sectionData as any)[key]}`);
+        const value = (sectionData as any)[key];
+        // Usar setValue com configurações adequadas para garantir atualização correta
+        setValue(key as any, value, {
+          shouldValidate: false,
+          shouldDirty: true,
+          shouldTouch: false
+        });
+        console.log(`LoadOnce: Definindo ${key} = ${value}`);
       });
+
+      // Forçar re-render para garantir que os inputs sejam atualizados
+      setTimeout(() => {
+        trigger();
+      }, 50);
+    }
+  };
+
+  // Função para rolar suavemente para o topo
+  const scrollToTop = () => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({
+        y: 0,
+        animated: true,
+      });
+    }
+  };
+
+  // Função para rolar para o primeiro campo com erro
+  const scrollToFirstError = (fieldName: string) => {
+    if (scrollViewRef.current) {
+      // Mapeamento de campos para posições aproximadas (em pixels)
+      const fieldPositions: { [key: string]: number } = {
+        // Seção 1
+        nomeCompleto: 0,
+        dataNascimento: 100,
+        genero: 200,
+        numeroSUS: 350,
+        estadoNascimento: 500,
+        cidadeNascimento: 650,
+        pesoNascer: 800,
+        semanasPrematuridade: 950,
+        complicacoesParto: 1100,
+        complicacoesDetalhes: 1250,
+
+        // Seção 2
+        nomePai: 0,
+        nomeMae: 150,
+        nomeResponsavel: 300,
+        parentesco: 450,
+        outroParentesco: 600,
+        dataNascimentoResponsavel: 750,
+        telefoneContato: 900,
+        cep: 1050,
+
+        // Outros campos das outras seções...
+      };
+
+      const position = fieldPositions[fieldName] || 0;
+
+      // Pequeno delay para dar tempo da validação processar
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({
+          y: position,
+          animated: true,
+        });
+      }, 100);
+    }
+  };
+
+  // Função genérica para limpar erro de um campo
+  const handleFieldChange = (fieldName: string, value: any, onChange: (value: any) => void) => {
+    onChange(value);
+    // Limpar erro quando usuário começar a digitar/selecionar
+    if (errors[fieldName as keyof typeof errors]) {
+      clearErrors(fieldName as any);
     }
   };
 
@@ -626,6 +699,16 @@ export const ChildRegistrationForm: React.FC<ChildRegistrationFormProps> = ({
     }
   }, [watchCep]);
 
+  // Rolar para o topo quando a seção muda
+  useEffect(() => {
+    // Pequeno delay para garantir que o DOM foi atualizado
+    const timer = setTimeout(() => {
+      scrollToTop();
+    }, 150);
+
+    return () => clearTimeout(timer);
+  }, [currentSection]);
+
   // Renderizar opção de radio button
   const renderRadioOption = (field: any, value: string, label: string, description?: string) => {
     return (
@@ -746,8 +829,10 @@ export const ChildRegistrationForm: React.FC<ChildRegistrationFormProps> = ({
     });
   };
 
-  // Limpar formulário quando mudar de seção
+  // Limpar formulário e erros quando mudar de seção
   const clearFormData = () => {
+    // Limpar todos os erros de validação
+    clearErrors();
     const defaultValues = {
       nomeCompleto: '',
       dataNascimento: '',
@@ -801,10 +886,19 @@ export const ChildRegistrationForm: React.FC<ChildRegistrationFormProps> = ({
       observacoesAdicionais: '',
     };
 
-    reset(defaultValues);
+    // Reset com configurações específicas para garantir limpeza completa
+    reset(defaultValues as ChildFormData, {
+      keepErrors: false,
+      keepDirty: false,
+      keepTouched: false,
+      keepValues: false,
+      keepDefaultValues: false,
+      keepIsSubmitted: false,
+      keepSubmitCount: false
+    });
   };
 
-  // Função para validar seção atual
+  // Função para validar seção atual com destaque de erros e scroll
   const validateCurrentSection = async () => {
     const currentData = getValues();
     const currentSchema = sectionSchemas[currentSection as keyof typeof sectionSchemas];
@@ -813,13 +907,31 @@ export const ChildRegistrationForm: React.FC<ChildRegistrationFormProps> = ({
       await currentSchema.validate(currentData, { abortEarly: false });
       return true;
     } catch (error: any) {
-      // Mostrar erros de validação
+      // Processar erros de validação
+      const errorFields: string[] = [];
+
       if (error.inner) {
         error.inner.forEach((err: any) => {
           console.log(`Erro no campo ${err.path}: ${err.message}`);
+          errorFields.push(err.path);
+
+          // Destacar campo com erro usando setError do react-hook-form
+          setError(err.path, {
+            type: 'manual',
+            message: err.message,
+          });
         });
       }
-      Alert.alert('Campos obrigatórios', 'Por favor, preencha todos os campos obrigatórios desta seção.');
+
+      // Fazer scroll para o primeiro campo com erro
+      if (errorFields.length > 0) {
+        scrollToFirstError(errorFields[0]);
+      }
+
+      Alert.alert(
+        'Campos obrigatórios',
+        'Por favor, preencha todos os campos obrigatórios desta seção. Os campos com erro estão destacados em vermelho.'
+      );
       return false;
     }
   };
@@ -842,7 +954,7 @@ export const ChildRegistrationForm: React.FC<ChildRegistrationFormProps> = ({
         clearFormData();
         setCurrentSection(nextSection);
         // Carregar dados da próxima seção após um pequeno delay
-        setTimeout(() => loadSectionDataOnce(nextSection), 100);
+        setTimeout(() => loadSectionDataOnce(nextSection), 200);
       } else {
         // Finalizar formulário - consolidar todos os dados
         const allSectionData = { ...sectionsData, [currentSection]: {} };
@@ -880,7 +992,7 @@ export const ChildRegistrationForm: React.FC<ChildRegistrationFormProps> = ({
       clearFormData();
       setCurrentSection(prevSection);
       // Carregar dados da seção anterior após um pequeno delay
-      setTimeout(() => loadSectionDataOnce(prevSection), 100);
+      setTimeout(() => loadSectionDataOnce(prevSection), 200);
     }
   };
 
@@ -924,8 +1036,11 @@ export const ChildRegistrationForm: React.FC<ChildRegistrationFormProps> = ({
               <Input
                 placeholder="Digite o nome completo da criança"
                 value={field.value}
-                onChangeText={field.onChange}
-                style={styles.input}
+                onChangeText={(text) => handleFieldChange('nomeCompleto', text, field.onChange)}
+                style={[
+                  styles.input,
+                  errors.nomeCompleto && styles.fieldError
+                ]}
                 error={errors.nomeCompleto?.message}
               />
             )}
@@ -1019,9 +1134,16 @@ export const ChildRegistrationForm: React.FC<ChildRegistrationFormProps> = ({
               <TouchableOpacity
                 style={[
                   styles.dropdownButton,
-                  loadingEstados && styles.dropdownDisabled
+                  loadingEstados && styles.dropdownDisabled,
+                  errors.estadoNascimento && styles.dropdownError
                 ]}
-                onPress={loadingEstados ? undefined : abrirModalEstado}
+                onPress={loadingEstados ? undefined : () => {
+                  abrirModalEstado();
+                  // Limpar erro quando usuário começar a selecionar
+                  if (errors.estadoNascimento) {
+                    clearErrors('estadoNascimento');
+                  }
+                }}
                 disabled={loadingEstados}
               >
                 <Typography
@@ -1060,9 +1182,16 @@ export const ChildRegistrationForm: React.FC<ChildRegistrationFormProps> = ({
               <TouchableOpacity
                 style={[
                   styles.dropdownButton,
-                  (!watchEstadoNascimento || loadingCidades) && styles.dropdownDisabled
+                  (!watchEstadoNascimento || loadingCidades) && styles.dropdownDisabled,
+                  errors.cidadeNascimento && styles.dropdownError
                 ]}
-                onPress={watchEstadoNascimento && !loadingCidades ? abrirModalCidade : undefined}
+                onPress={watchEstadoNascimento && !loadingCidades ? () => {
+                  abrirModalCidade();
+                  // Limpar erro quando usuário começar a selecionar
+                  if (errors.cidadeNascimento) {
+                    clearErrors('cidadeNascimento');
+                  }
+                } : undefined}
                 disabled={!watchEstadoNascimento || loadingCidades}
               >
                 <Typography
@@ -1206,10 +1335,15 @@ export const ChildRegistrationForm: React.FC<ChildRegistrationFormProps> = ({
             render={({ field }) => (
               <Input
                 placeholder="Digite o nome completo do pai"
-                value={field.value}
-                onChangeText={field.onChange}
+                value={field.value || ''}
+                onChangeText={(text) => {
+                  handleFieldChange('nomePai', text, field.onChange);
+                  // Forçar atualização do campo
+                  setTimeout(() => field.onBlur(), 10);
+                }}
                 style={styles.input}
                 error={errors.nomePai?.message}
+                key={`nomePai-${currentSection}`}
               />
             )}
           />
@@ -1246,10 +1380,15 @@ export const ChildRegistrationForm: React.FC<ChildRegistrationFormProps> = ({
             render={({ field }) => (
               <Input
                 placeholder="Digite o nome do responsável legal"
-                value={field.value}
-                onChangeText={field.onChange}
+                value={field.value || ''}
+                onChangeText={(text) => {
+                  handleFieldChange('nomeResponsavel', text, field.onChange);
+                  // Forçar atualização do campo
+                  setTimeout(() => field.onBlur(), 10);
+                }}
                 style={styles.input}
                 error={errors.nomeResponsavel?.message}
+                key={`nomeResponsavel-${currentSection}`}
               />
             )}
           />
@@ -2218,7 +2357,11 @@ export const ChildRegistrationForm: React.FC<ChildRegistrationFormProps> = ({
       />
 
       {/* Conteúdo da Seção */}
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.formContainer}>
           {renderCurrentSection()}
         </View>
@@ -2291,7 +2434,15 @@ export const ChildRegistrationForm: React.FC<ChildRegistrationFormProps> = ({
                 <TouchableOpacity
                   style={styles.modalOption}
                   onPress={() => {
-                    setValue('estadoNascimento', item.nome);
+                    setValue('estadoNascimento', item.nome, {
+                      shouldValidate: true,
+                      shouldDirty: true,
+                      shouldTouch: true
+                    });
+                    // Limpar erro quando item for selecionado
+                    if (errors.estadoNascimento) {
+                      clearErrors('estadoNascimento');
+                    }
                     setShowEstadoModal(false);
                   }}
                 >
@@ -2354,7 +2505,15 @@ export const ChildRegistrationForm: React.FC<ChildRegistrationFormProps> = ({
                 <TouchableOpacity
                   style={styles.modalOption}
                   onPress={() => {
-                    setValue('cidadeNascimento', item.nome);
+                    setValue('cidadeNascimento', item.nome, {
+                      shouldValidate: true,
+                      shouldDirty: true,
+                      shouldTouch: true
+                    });
+                    // Limpar erro quando item for selecionado
+                    if (errors.cidadeNascimento) {
+                      clearErrors('cidadeNascimento');
+                    }
                     setShowCidadeModal(false);
                   }}
                 >
@@ -2653,5 +2812,23 @@ const styles = StyleSheet.create({
   largeTextArea: {
     minHeight: 120,
     textAlignVertical: 'top',
+  },
+  // Estilos para campos com erro
+  fieldError: {
+    borderColor: Colors.error,
+    borderWidth: 2,
+    backgroundColor: Colors.error + '05', // 5% de opacidade
+  },
+  dropdownError: {
+    borderColor: Colors.error,
+    borderWidth: 2,
+    backgroundColor: Colors.error + '05',
+  },
+  radioGroupError: {
+    borderColor: Colors.error,
+    borderWidth: 1,
+    borderRadius: Sizes.radius.md,
+    padding: Sizes.spacing.sm,
+    backgroundColor: Colors.error + '05',
   },
 });

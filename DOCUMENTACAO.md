@@ -98,6 +98,24 @@ O projeto segue uma arquitetura **Component-Based** com separação clara de res
 - **Persistência Segura**: Expo Secure Store
 - **Estado Global**: Zustand store tipado
 
+### 📝 Sistema de Cadastro de Crianças
+- **Formulário Completo**: 8 seções navegáveis com dados médicos e familiares
+- **Validação por Seção**: React Hook Form + Yup com validação progressiva
+- **Persistência de Dados**: Dados salvos entre navegações das seções
+- **Integração Supabase**: Salvamento automático no banco de dados
+- **Campos Avançados**: 50+ campos incluindo arrays e dados médicos complexos
+- **APIs Integradas**: IBGE (estados/cidades) e ViaCEP (endereços)
+- **UX Profissional**: Barra de progresso, animações suaves, feedback visual
+
+### 🗄️ Integração com Banco de Dados
+- **Supabase PostgreSQL**: Banco principal com Row Level Security (RLS)
+- **Tabela `children`**: 55+ campos para dados completos das crianças
+- **Service Layer**: `childrenService` para CRUD completo
+- **Validações**: Checks constraints, campos obrigatórios, tipos específicos
+- **Segurança**: Políticas RLS garantindo isolamento por usuário
+- **Performance**: Índices otimizados para buscas e relatórios
+- **Auditoria**: Triggers automáticos para created_at/updated_at
+
 ---
 
 ## 📁 Estrutura de Arquivos
@@ -157,6 +175,12 @@ O projeto segue uma arquitetura **Component-Based** com separação clara de res
 #### `/auth/` - Serviços de Autenticação
 ```typescript
 ├── authService.ts      # Abstração das operações de auth
+└── index.ts           # Barrel export
+```
+
+#### `/children/` - Serviços de Cadastro de Crianças
+```typescript
+├── childrenService.ts  # CRUD completo para dados das crianças
 └── index.ts           # Barrel export
 ```
 
@@ -320,6 +344,31 @@ const [showVerificationModal, setShowVerificationModal] = useState(false);
 - **Seletor de Unidade**: Toggle anos/meses
 - **Cálculos Precisos**: Baseados em fórmulas pediátricas
 - **Resultados Detalhados**: Tubo ET (ID/OD), Traqueostomia
+
+### RegisterChildScreen.tsx
+**Propósito**: Tela principal para cadastro completo de crianças com traqueostomia
+
+**Componentes:**
+- `Header`: Header padrão com botão voltar
+- `ChildRegistrationForm`: Formulário multi-seção completo
+- `Toast`: Feedback visual de sucesso/erro
+
+**Funcionalidades principais:**
+- **8 Seções Navegáveis**: Dados da criança, responsáveis, gestação, clínica, médico, cuidados, suporte, observações
+- **Validação Progressiva**: Usuário só avança se completar campos obrigatórios da seção atual
+- **Persistência Entre Seções**: Dados salvos automaticamente durante navegação
+- **Integração APIs**: IBGE para estados/cidades, ViaCEP para endereços via CEP
+- **Salvamento Supabase**: Integração completa com childrenService para persistência
+- **Feedback Profissional**: Toasts, alerts, loading states e mensagens de erro específicas
+- **50+ Campos**: Incluindo arrays, campos condicionais, dropdowns modais e validações médicas
+
+**Fluxo de salvamento:**
+1. Usuário preenche todas as 8 seções
+2. Sistema consolida dados de todas as seções
+3. Dados são transformados para formato do banco
+4. childrenService.createChild() salva no Supabase
+5. Feedback de sucesso/erro é exibido
+6. Usuário retorna ao portal principal
 
 ---
 
@@ -496,6 +545,44 @@ useEffect(() => {
 - **Row Level Security**: Políticas RLS no Supabase
 - **Validação Client-Side**: React Hook Form + Yup
 - **Sanitização**: Validação de inputs
+
+### childrenService.ts
+**Propósito**: Service layer completo para gerenciamento de dados das crianças
+
+**Principais métodos:**
+```typescript
+interface ChildrenService {
+  // CRUD básico
+  createChild(formData: ChildFormData): Promise<ServiceResult<Child>>;
+  getChildren(): Promise<ServiceResult<Child[]>>;
+  getChildById(childId: string): Promise<ServiceResult<Child>>;
+  updateChild(childId: string, formData: ChildFormData): Promise<ServiceResult<Child>>;
+  deleteChild(childId: string): Promise<ServiceResult<void>>;
+}
+```
+
+**Funcionalidades:**
+- **Transformação de Dados**: Converte dados do formulário para formato do banco automaticamente
+- **Validações Rigorosas**: Nome obrigatório, data válida, SUS com 15 dígitos
+- **Prevenção de Duplicatas**: Verificação de SUS já cadastrado para o usuário
+- **Compatibilidade**: Popula campos antigos (name, birth_date) para retrocompatibilidade
+- **Logs Detalhados**: Debug logs para desenvolvimento com prefixo [ChildrenService]
+- **Tratamento de Erros**: Mensagens específicas para diferentes tipos de erro
+
+**Transformações principais:**
+```typescript
+// Formato do formulário → Formato do banco
+nomeCompleto → nome_completo + name (compatibilidade)
+dataNascimento (DD/MM/YYYY) → data_nascimento (YYYY-MM-DD) + birth_date
+numeroSUS → numero_sus (limpo, só dígitos)
+pesoNascer → peso_nascer (convertido para integer)
+// + 50 outros campos com transformações específicas
+```
+
+**Segurança integrada:**
+- **RLS Automático**: Todas as queries respeitam Row Level Security
+- **Isolamento por Usuário**: Apenas dados do usuário autenticado são acessíveis
+- **Validação Dupla**: Client-side (formulário) + server-side (database constraints)
 
 ---
 
@@ -689,7 +776,11 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 ### Configuração Supabase
 
-**Database Schema:**
+> **📋 Documentação Completa**: Para detalhes completos da estrutura do banco de dados, consulte [DATABASE.md](./DATABASE.md)
+>
+> **🗄️ Script de Setup**: Para criar a estrutura no Supabase, execute [`docs/database/supabase-setup.sql`](./docs/database/supabase-setup.sql)
+
+**Database Schema Principal:**
 ```sql
 -- Tabela de usuários estendida
 CREATE TABLE public.users (
