@@ -20,7 +20,8 @@ Este é um aplicativo React Native Expo chamado "VapApp" construído com TypeScr
 ```
 src/
 ├── components/          # Componentes UI reutilizáveis
-│   ├── ui/             # Componentes UI base (Button, Input, Typography, Toast, ReadOnlyField)
+│   ├── ui/             # Componentes UI base (Button, Input, Typography, Toast, ReadOnlyField, ProgressBar)
+│   ├── forms/          # Componentes de formulários (ChildRegistrationForm)
 │   ├── calculators/    # Componentes de calculadoras médicas (TraqueostomiaCalculator)
 │   └── common/         # Componentes comuns com lógica de negócio
 │       ├── Header.tsx           # Header padrão reutilizável com botão voltar
@@ -28,7 +29,8 @@ src/
 │       ├── SectionCard.tsx      # Card de seção com título
 │       ├── ActionButton.tsx     # Botão de ação com ícone
 │       ├── ResourceGrid.tsx     # Grid de recursos em 2 colunas
-│       └── VerificationModal.tsx # Modal de verificação de código
+│       ├── VerificationModal.tsx # Modal de verificação de código
+│       └── SUSHelpModal.tsx     # Modal de ajuda sobre cartão SUS
 ├── screens/            # Componentes de tela organizados por funcionalidade
 │   ├── auth/           # Telas de autenticação
 │   ├── HomeScreen.tsx           # Portal principal para pais e cuidadores
@@ -128,6 +130,27 @@ O aplicativo usa variáveis de ambiente para configuração do Supabase:
 - Máscara de telefone brasileiro
 - Campos readonly para dados não editáveis
 
+### Formulário de Cadastro de Crianças
+- Formulário completo de cadastro dividido em 8 seções navegáveis
+- **Seção 1**: Informações básicas da criança (nome, nascimento, SUS, localização)
+- **Seção 2**: Informações dos pais/responsáveis (contatos, endereço, educação)
+- **Seção 3**: Gestação e parto (planejamento, pré-natal, complicações, tipo de parto)
+- **Seção 4**: Condição clínica e traqueostomia (idade, motivos, tipo, equipamentos)
+- **Seção 5**: Acompanhamento médico e dificuldades (internações, especialistas)
+- **Seção 6**: Cuidados domiciliares diários (cuidador principal, horas de cuidado)
+- **Seção 7**: Recursos e suporte social (benefícios, acesso a materiais)
+- **Seção 8**: Observações adicionais (campo livre para informações extras)
+
+#### Características do Formulário
+- **Navegação por seções** com barra de progresso visual
+- **Validação por seção** - usuário só avança se completar campos obrigatórios
+- **Persistência de dados** - dados salvos durante navegação entre seções
+- **Integração com APIs**: IBGE (estados/cidades) e ViaCEP (endereços)
+- **Componentes avançados**: Dropdowns modais, checkboxes múltiplos, campos condicionais
+- **Modal de ajuda** para cartão SUS com exemplo visual
+- **Formatação automática** de campos (data, telefone, CEP, SUS)
+- **Sistema de limpeza** entre seções para UX profissional
+
 ### Calculadora Médica
 - Calculadora de cânula de traqueostomia
 - Validação de idade (apenas números inteiros)
@@ -141,6 +164,7 @@ O aplicativo usa variáveis de ambiente para configuração do Supabase:
 - Máscaras de input (telefone brasileiro)
 - Validações em tempo real
 - Feedback visual consistente
+- Barra de progresso para formulários multi-seção
 
 ## Padrões de Desenvolvimento
 
@@ -163,6 +187,43 @@ Sempre usar o componente `Header` reutilizável:
 - Validações em tempo real
 - Feedback visual claro
 
+#### Formulários Multi-Seção
+Para formulários complexos, usar o padrão implementado no ChildRegistrationForm:
+```typescript
+// 1. Estado para dados por seção
+const [sectionsData, setSectionsData] = useState<{ [key: number]: Partial<FormData> }>({});
+
+// 2. Função para definir campos por seção
+const getSectionFields = (section: number): string[] => {
+  switch (section) {
+    case 1: return ['campo1', 'campo2'];
+    case 2: return ['campo3', 'campo4'];
+  }
+};
+
+// 3. Salvar dados da seção atual
+const saveSectionData = () => {
+  const currentData = getValues();
+  const sectionFields = getSectionFields(currentSection);
+  // ... lógica de salvamento
+};
+
+// 4. Navegação com limpeza e carregamento
+const handleNextSection = async () => {
+  saveSectionData();
+  clearFormData();
+  setCurrentSection(nextSection);
+  setTimeout(() => loadSectionDataOnce(nextSection), 100);
+};
+```
+
+#### Características Essenciais
+- **Validação por seção**: Usar schemas Yup separados por seção
+- **Persistência entre navegações**: Salvar dados antes de mudar seção
+- **Limpeza de formulário**: Reset antes de carregar nova seção
+- **Barra de progresso**: Componente ProgressBar para feedback visual
+- **Componentes condicionais**: Campos que aparecem baseados em seleções anteriores
+
 ### Navegação
 - Todas as rotas tipadas em `RootStackParamList`
 - Deep linking configurado
@@ -172,3 +233,33 @@ Sempre usar o componente `Header` reutilizável:
 - Zustand para estado global
 - Stores funcionais e tipados
 - Persistência segura com Expo Secure Store
+
+## Problemas Conhecidos e Soluções
+
+### Formulários Multi-Seção - useEffect Loop
+**Problema**: useEffect com dependência `sectionsData` causa loop infinito impedindo digitação.
+**Solução**: Remover `sectionsData` das dependências e usar carregamento manual com setTimeout.
+
+### React Hook Form - Campo "watch is not a function"
+**Problema**: Conflito de nomes ao usar `watch` do useForm.
+**Solução**: Renomear para `watch: watchForm` na desestruturação do useForm.
+
+### Persistência de Dados Entre Seções
+**Problema**: Dados de seções anteriores aparecem em seções seguintes.
+**Solução**: Implementar sistema de limpeza com `reset()` e carregamento seletivo por seção.
+
+### Validação Condicional
+**Problema**: Campos condicionais não validam corretamente.
+**Solução**: Usar `yup.when()` com schemas separados por seção.
+
+## Comandos de Produção
+
+### Testes e Build
+- `npm run lint` - Executar linting (quando disponível)
+- `npm run typecheck` - Verificar tipos TypeScript (quando disponível)
+- Sempre executar estes comandos antes de commits importantes
+
+### Deploy
+- Verificar todas as validações antes de fazer push
+- Testar formulários completos em diferentes dispositivos
+- Validar integrações com APIs externas (IBGE, ViaCEP)
