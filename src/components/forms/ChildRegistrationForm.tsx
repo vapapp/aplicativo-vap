@@ -390,16 +390,12 @@ export const ChildRegistrationForm: React.FC<ChildRegistrationFormProps> = ({
   const [searchEstado, setSearchEstado] = useState('');
   const [searchCidade, setSearchCidade] = useState('');
 
-  // Watchers para campos condicionais
-  const watchComplicacoesParto = watch('complicacoesParto');
-  const watchEstadoNascimento = watch('estadoNascimento');
-
   // Form setup
   const {
     control,
     handleSubmit,
     formState: { errors },
-    watch,
+    watch: watchForm,
     setValue,
     trigger,
     getValues,
@@ -458,6 +454,10 @@ export const ChildRegistrationForm: React.FC<ChildRegistrationFormProps> = ({
       observacoesAdicionais: '',
     },
   });
+
+  // Watchers para campos condicionais
+  const watchComplicacoesParto = watchForm('complicacoesParto');
+  const watchEstadoNascimento = watchForm('estadoNascimento');
 
   // Funções de formatação
   const formatDate = (text: string) => {
