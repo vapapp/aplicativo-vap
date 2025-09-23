@@ -73,7 +73,7 @@ export const HomeScreen: React.FC = () => {
             <ActionButton
               title="Cadastrar crianças"
               iconName="happy-outline"
-              onPress={() => handleNavigation('Cadastrar crianças')}
+              onPress={() => navigation.navigate('RegisterChild')}
             />
             <ActionButton
               title="Calculadora de cânulas"
