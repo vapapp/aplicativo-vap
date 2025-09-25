@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Header } from '../components/common';
-import { ChildRegistrationForm } from '../components/forms';
-import { Toast } from '../components/ui';
+import { ChildRegistrationForm, ChildRegistrationIntro, ChildRegistrationSuccess } from '../components/forms';
+import { Toast, Typography } from '../components/ui';
 import { childrenService } from '../services';
-import { Colors } from '../utils/constants';
+import { Colors, Sizes } from '../utils/constants';
 
 interface ChildFormData {
   // Seção 1: Informações da Criança
@@ -80,6 +80,52 @@ export const RegisterChildScreen: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
+  const [showIntro, setShowIntro] = useState(true);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [savedChild, setSavedChild] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasExistingChild, setHasExistingChild] = useState(false);
+
+  // Verificar se já existe criança cadastrada ao carregar a tela
+  useEffect(() => {
+    const checkExistingChild = async () => {
+      try {
+        setIsLoading(true);
+        console.log('=== VERIFICANDO CRIANÇA EXISTENTE ===');
+
+        const { data: children, error } = await childrenService.getChildren();
+
+        if (error) {
+          console.error('Erro ao buscar crianças:', error);
+          setIsLoading(false);
+          return;
+        }
+
+        console.log('Crianças encontradas:', children);
+
+        // Se tem pelo menos uma criança, mostrar tela de sucesso
+        if (children && children.length > 0) {
+          const firstChild = children[0];
+          console.log('Criança já cadastrada encontrada:', firstChild);
+
+          setHasExistingChild(true);
+          setSavedChild(firstChild);
+          setShowSuccess(true);
+          setShowIntro(false);
+        } else {
+          console.log('Nenhuma criança cadastrada, permitir novo cadastro');
+          setHasExistingChild(false);
+        }
+
+      } catch (error) {
+        console.error('Erro ao verificar criança existente:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkExistingChild();
+  }, []);
 
   const handleFormSubmit = async (data: ChildFormData) => {
     try {
@@ -104,24 +150,11 @@ export const RegisterChildScreen: React.FC = () => {
 
       console.log('=== CRIANÇA SALVA COM SUCESSO ===', savedChild);
 
-      // Feedback de sucesso
-      setToastMessage('Criança cadastrada com sucesso! ✅');
-      setToastType('success');
-      setShowToast(true);
+      // Salvar dados para tela de sucesso
+      setSavedChild(savedChild);
 
-      // Navegar para a tela principal após sucesso
-      setTimeout(() => {
-        Alert.alert(
-          'Cadastro Realizado! ✅',
-          `A criança ${data.nomeCompleto} foi cadastrada com sucesso no sistema.\n\nID: ${savedChild.id}`,
-          [
-            {
-              text: 'Voltar ao Portal',
-              onPress: () => navigation.goBack(),
-            },
-          ]
-        );
-      }, 2000);
+      // Mostrar tela de sucesso
+      setShowSuccess(true);
 
     } catch (error: any) {
       console.error('=== ERRO NO CADASTRO ===', error);
@@ -168,11 +201,58 @@ export const RegisterChildScreen: React.FC = () => {
     }
   };
 
+  const handleStartForm = () => {
+    // Se já tem criança cadastrada, não permitir novo formulário
+    if (hasExistingChild) {
+      setToastMessage('Você já possui uma criança cadastrada no sistema');
+      setToastType('error');
+      setShowToast(true);
+      return;
+    }
+    setShowIntro(false);
+  };
+
+  const handleCancelForm = () => {
+    navigation.goBack();
+  };
+
+  const handleBackToHome = () => {
+    navigation.goBack();
+  };
+
+  // Mostrar loading enquanto verifica se existe criança
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <Header title="Cadastrar Criança" showBackButton />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.vapapp.teal} />
+          <Typography variant="body" style={styles.loadingText}>
+            Verificando dados existentes...
+          </Typography>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Header title="Cadastrar Criança" showBackButton />
 
-      <ChildRegistrationForm onSubmit={handleFormSubmit} />
+      {showSuccess ? (
+        <ChildRegistrationSuccess
+          childName={savedChild?.nome_completo || 'Criança'}
+          childId={savedChild?.id || 'N/A'}
+          onBackToHome={handleBackToHome}
+        />
+      ) : showIntro ? (
+        <ChildRegistrationIntro
+          onStart={handleStartForm}
+          onCancel={handleCancelForm}
+        />
+      ) : (
+        <ChildRegistrationForm onSubmit={handleFormSubmit} />
+      )}
 
       {showToast && (
         <Toast
@@ -190,5 +270,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F5F5',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Sizes.spacing.lg,
+  },
+  loadingText: {
+    marginTop: Sizes.spacing.md,
+    textAlign: 'center',
+    color: Colors.text.secondary,
   },
 });

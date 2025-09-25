@@ -308,7 +308,7 @@ const sectionSchemas = {
         const ageInYears = (childDate.getTime() - parentDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
 
         // Responsável deve ser entre 14 e 70 anos mais velho que a criança
-        return ageInYears >= -70 && ageInYears <= -14;
+        return ageInYears >= 14 && ageInYears <= 70;
       }),
     telefoneContato: yup
       .string()
@@ -1218,148 +1218,6 @@ export const ChildRegistrationForm: React.FC<ChildRegistrationFormProps> = ({
     }
   };
 
-  // Função que retorna os campos obrigatórios de cada seção baseado no schema
-  const getRequiredFieldsCount = (section: number): number => {
-    const schema = sectionSchemas[section as keyof typeof sectionSchemas];
-    if (!schema) return 0;
-
-    const currentValues = getValues();
-    let requiredCount = 0;
-
-    // Analisar cada campo no schema para determinar se é obrigatório
-    const schemaFields = (schema as any).fields;
-
-    Object.keys(schemaFields).forEach(fieldName => {
-      const fieldSchema = schemaFields[fieldName];
-
-      // Verificar se o campo é obrigatório
-      if (fieldSchema._exclusive && fieldSchema._exclusive.required) {
-        requiredCount++;
-      }
-
-      // Para campos condicionais (when), verificar se são obrigatórios baseado no valor atual
-      if (fieldSchema._whitelist && fieldSchema._whitelist.list && fieldSchema._whitelist.list.length > 0) {
-        // Campo com opções limitadas geralmente é obrigatório
-        requiredCount++;
-      }
-
-      // Para arrays que precisam ter pelo menos 1 item
-      if (fieldSchema.type === 'array' && fieldSchema._typeError) {
-        const testValue = fieldSchema.tests?.find((test: any) => test.name === 'min');
-        if (testValue) {
-          requiredCount++;
-        }
-      }
-    });
-
-    // Ajustes manuais baseados no conhecimento dos schemas
-    switch (section) {
-      case 1:
-        return 9; // nomeCompleto, dataNascimento, genero, numeroSUS, estadoNascimento, cidadeNascimento, pesoNascer, semanasPrematuridade, complicacoesParto
-      case 2:
-        return 10; // parentesco, dataNascimentoResponsavel, telefoneContato, cep, rua, numero, bairro, cidadeEndereco, estadoEndereco, nivelEstudo
-      case 3:
-        return 4; // gravidezPlanejada, acompanhamentoPreNatal, tipoParto, ajudaEspecialRespiracao
-      case 4:
-        return 4; // idadeTraqueostomia, motivosTraqueostomia, tipoTraqueostomia, equipamentosMedicos
-      case 5:
-        return 2; // internacoesPosTraqueostomia, acompanhamentoMedico
-      case 6:
-        return 3; // principalCuidador, horasCuidadosDiarios, treinamentoHospital
-      case 7:
-        return 2; // beneficioFinanceiro, acessoMateriais
-      case 8:
-        return 0; // observacoesAdicionais é opcional
-      default:
-        return 0;
-    }
-  };
-
-  // Função que conta quantos campos obrigatórios foram preenchidos na seção atual
-  const getFilledRequiredFieldsCount = (section: number): number => {
-    const currentValues = getValues();
-    let filledCount = 0;
-
-    switch (section) {
-      case 1:
-        const requiredFields1 = ['nomeCompleto', 'dataNascimento', 'genero', 'numeroSUS', 'estadoNascimento', 'cidadeNascimento', 'pesoNascer', 'semanasPrematuridade', 'complicacoesParto'];
-        requiredFields1.forEach(field => {
-          const value = (currentValues as any)[field];
-          if (value && value !== '') filledCount++;
-        });
-        // Campo condicional: complicacoesDetalhes só é obrigatório se complicacoesParto === 'sim'
-        if (currentValues.complicacoesParto === 'sim' && currentValues.complicacoesDetalhes && currentValues.complicacoesDetalhes !== '') {
-          // Não adicionar extra, já está incluído no count de complicacoesParto
-        }
-        break;
-
-      case 2:
-        const requiredFields2 = ['parentesco', 'dataNascimentoResponsavel', 'telefoneContato', 'cep', 'rua', 'numero', 'bairro', 'cidadeEndereco', 'estadoEndereco', 'nivelEstudo'];
-        requiredFields2.forEach(field => {
-          const value = (currentValues as any)[field];
-          if (value && value !== '') filledCount++;
-        });
-        break;
-
-      case 3:
-        const requiredFields3 = ['gravidezPlanejada', 'acompanhamentoPreNatal', 'tipoParto', 'ajudaEspecialRespiracao'];
-        requiredFields3.forEach(field => {
-          const value = (currentValues as any)[field];
-          if (value && value !== '') filledCount++;
-        });
-        break;
-
-      case 4:
-        const requiredFields4 = ['idadeTraqueostomia', 'tipoTraqueostomia'];
-        requiredFields4.forEach(field => {
-          const value = (currentValues as any)[field];
-          if (value && value !== '') filledCount++;
-        });
-        // Arrays obrigatórios
-        if (currentValues.motivosTraqueostomia && Array.isArray(currentValues.motivosTraqueostomia) && currentValues.motivosTraqueostomia.length > 0) {
-          filledCount++;
-        }
-        if (currentValues.equipamentosMedicos && Array.isArray(currentValues.equipamentosMedicos) && currentValues.equipamentosMedicos.length > 0) {
-          filledCount++;
-        }
-        break;
-
-      case 5:
-        const requiredFields5 = ['internacoesPosTraqueostomia'];
-        requiredFields5.forEach(field => {
-          const value = (currentValues as any)[field];
-          if (value && value !== '') filledCount++;
-        });
-        // Array obrigatório
-        if (currentValues.acompanhamentoMedico && Array.isArray(currentValues.acompanhamentoMedico) && currentValues.acompanhamentoMedico.length > 0) {
-          filledCount++;
-        }
-        break;
-
-      case 6:
-        const requiredFields6 = ['principalCuidador', 'horasCuidadosDiarios', 'treinamentoHospital'];
-        requiredFields6.forEach(field => {
-          const value = (currentValues as any)[field];
-          if (value && value !== '') filledCount++;
-        });
-        break;
-
-      case 7:
-        const requiredFields7 = ['beneficioFinanceiro', 'acessoMateriais'];
-        requiredFields7.forEach(field => {
-          const value = (currentValues as any)[field];
-          if (value && value !== '') filledCount++;
-        });
-        break;
-
-      case 8:
-        // Seção 8 não tem campos obrigatórios
-        filledCount = 0;
-        break;
-    }
-
-    return filledCount;
-  };
 
   // Salvar dados da seção atual
   const saveSectionData = () => {
@@ -3008,8 +2866,6 @@ export const ChildRegistrationForm: React.FC<ChildRegistrationFormProps> = ({
         currentStep={currentSection}
         totalSteps={8}
         sectionTitle={sectionTitles[currentSection as keyof typeof sectionTitles]}
-        requiredFieldsCount={getRequiredFieldsCount(currentSection)}
-        filledRequiredFieldsCount={getFilledRequiredFieldsCount(currentSection)}
       />
 
       {/* Conteúdo da Seção */}

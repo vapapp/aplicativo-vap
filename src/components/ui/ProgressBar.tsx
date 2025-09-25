@@ -27,6 +27,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
         </Typography>
       </View>
 
+
       <View style={styles.progressBarContainer}>
         <View
           style={[
