@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Alert } from 'react-native';
 import { WelcomeScreen, LoginScreen, SignUpScreen, ForgotPasswordScreen, ResetPasswordScreen } from '../screens/auth';
-import { HomeScreen, EditProfileScreen, EmailUpdatedScreen, TraqueostomiaScreen, RegisterChildScreen } from '../screens';
+import { HomeScreen, EditProfileScreen, EmailUpdatedScreen, TraqueostomiaScreen, RegisterChildScreen, VAPAssistantScreen } from '../screens';
 import { useAuthStore } from '../stores/authStore';
 import { authService } from '../services/auth';
 import { Colors } from '../utils/constants';
@@ -19,6 +19,7 @@ export type RootStackParamList = {
   EmailUpdated: undefined;
   Traqueostomia: undefined;
   RegisterChild: undefined;
+  VAPAssistant: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -98,6 +99,7 @@ export const AppNavigator: React.FC = () => {
             <Stack.Screen name="EmailUpdated" component={EmailUpdatedScreen} />
             <Stack.Screen name="Traqueostomia" component={TraqueostomiaScreen} />
             <Stack.Screen name="RegisterChild" component={RegisterChildScreen} />
+            <Stack.Screen name="VAPAssistant" component={VAPAssistantScreen} />
           </>
         ) : (
           <>

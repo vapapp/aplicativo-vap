@@ -23,8 +23,15 @@ export const HomeScreen: React.FC = () => {
   };
 
   const handleNavigation = (screen: string) => {
-    // TODO: Implementar navegação para cada tela específica
-    Alert.alert('Navegação', `Navegar para: ${screen}`);
+    switch (screen) {
+      case 'Assistente vap':
+        navigation.navigate('VAPAssistant');
+        break;
+      default:
+        // TODO: Implementar navegação para outras telas
+        Alert.alert('Navegação', `Navegar para: ${screen}`);
+        break;
+    }
   };
 
   const handleEditProfile = () => {
