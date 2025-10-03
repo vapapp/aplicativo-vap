@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   Linking,
   Text,
+  Alert,
+  TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +22,7 @@ import { ERROR_MESSAGES } from '../config';
 interface ConversationMessage {
   role: 'user' | 'assistant';
   content: string;
+  timestamp: string;
 }
 
 export const VAPAssistantScreen: React.FC = () => {
@@ -65,9 +68,11 @@ export const VAPAssistantScreen: React.FC = () => {
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
 
+    const messageToSend = inputMessage.trim();
+    setInputMessage(''); // Limpar input imediatamente
+
     try {
-      await sendMessage(inputMessage.trim());
-      setInputMessage('');
+      await sendMessage(messageToSend);
     } catch (error: any) {
       console.error('Erro ao enviar mensagem:', error);
 
@@ -169,33 +174,17 @@ export const VAPAssistantScreen: React.FC = () => {
   const renderUsageInfo = () => {
     if (!usage) return null;
 
+    const usedMessages = 20 - usage.remainingMessages;
     const isLowUsage = usage.remainingMessages <= 5;
 
     return (
-      <View style={[
-        styles.usageContainer,
-        isLowUsage && styles.usageContainerWarning
-      ]}>
-        <View style={styles.usageHeader}>
-          <Ionicons
-            name={isLowUsage ? "warning-outline" : "information-circle-outline"}
-            size={16}
-            color={isLowUsage ? Colors.warning : Colors.vapapp.teal}
-          />
-          <Typography variant="caption" style={styles.usageTitle}>
-            Uso Diário
-          </Typography>
-        </View>
-
-        <Typography variant="caption" style={styles.usageText}>
-          Mensagens restantes: {usage.remainingMessages}/20
+      <View style={styles.footerUsageContainer}>
+        <Typography variant="caption" style={[
+          styles.footerUsageText,
+          isLowUsage && styles.footerUsageTextWarning
+        ]}>
+          {usedMessages} de 20 mensagens utilizadas hoje
         </Typography>
-
-        {usage.resetTime && (
-          <Typography variant="caption" style={styles.usageResetText}>
-            Reset: {new Date(usage.resetTime).toLocaleDateString('pt-BR')} às {new Date(usage.resetTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-          </Typography>
-        )}
       </View>
     );
   };
@@ -261,9 +250,6 @@ export const VAPAssistantScreen: React.FC = () => {
     >
       <Header title="Dr. VAP" showBackButton />
 
-      {/* Informações de uso */}
-      {renderUsageInfo()}
-
       {/* Lista de mensagens */}
       <ScrollView
         ref={scrollViewRef}
@@ -298,27 +284,28 @@ export const VAPAssistantScreen: React.FC = () => {
       {/* Input de mensagem */}
       <View style={styles.inputContainer}>
         <View style={styles.messageInputRow}>
-          <View style={styles.inputWrapper}>
-            <Input
-              placeholder="Digite sua pergunta para o Dr. VAP..."
-              value={inputMessage}
-              onChangeText={setInputMessage}
-              multiline
-              maxLength={1000}
-              style={styles.messageInput}
-              inputStyle={styles.messageInputStyle}
-              editable={!loading && (usage === null || usage.remainingMessages > 0)}
-            />
-          </View>
+          <TextInput
+            placeholder="Digite sua pergunta para o Dr. VAP..."
+            placeholderTextColor={Colors.neutral[400]}
+            value={inputMessage}
+            onChangeText={setInputMessage}
+            multiline
+            maxLength={1000}
+            style={styles.messageInput}
+            editable={!loading && (usage === null || usage.remainingMessages > 0)}
+          />
 
           <Button
-            title={loading ? "⏳" : "➤"}
+            title="➤"
             onPress={handleSendMessage}
             disabled={loading || !inputMessage.trim() || (usage !== null && usage.remainingMessages <= 0)}
             variant="primary"
             style={styles.sendButton}
           />
         </View>
+
+        {/* Informações de uso - minimalista no rodapé */}
+        {renderUsageInfo()}
       </View>
     </KeyboardAvoidingView>
   );
@@ -340,33 +327,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: Colors.text.secondary,
   },
-  usageContainer: {
-    backgroundColor: Colors.background.card,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral[200],
-    padding: Sizes.spacing.md,
-  },
-  usageContainerWarning: {
-    backgroundColor: Colors.warning + '10',
-    borderBottomColor: Colors.warning + '30',
-  },
-  usageHeader: {
-    flexDirection: 'row',
+  footerUsageContainer: {
+    paddingTop: Sizes.spacing.xs,
     alignItems: 'center',
-    marginBottom: Sizes.spacing.xs,
   },
-  usageTitle: {
-    marginLeft: Sizes.spacing.xs,
-    fontWeight: '600',
-    color: Colors.text.primary,
+  footerUsageText: {
+    fontSize: 11,
+    color: Colors.neutral[400],
   },
-  usageText: {
-    color: Colors.text.secondary,
-  },
-  usageResetText: {
-    color: Colors.text.secondary,
-    fontSize: 12,
-    marginTop: 2,
+  footerUsageTextWarning: {
+    color: Colors.warning,
+    fontWeight: '500',
   },
   messagesContainer: {
     flex: 1,
@@ -472,32 +443,38 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.neutral[200],
     padding: Sizes.spacing.md,
-    paddingBottom: Sizes.spacing.lg,
+    paddingBottom: Sizes.spacing.sm,
   },
   messageInputRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     gap: Sizes.spacing.sm,
-  },
-  inputWrapper: {
-    flex: 1,
+    paddingVertical: Sizes.spacing.xs,
   },
   messageInput: {
-    marginBottom: 0,
-  },
-  messageInputStyle: {
-    minHeight: 52,
-    maxHeight: 120,
-    paddingVertical: Sizes.spacing.md,
+    flex: 1,
+    minHeight: 44,
+    maxHeight: 100,
+    paddingVertical: Sizes.spacing.sm,
+    paddingHorizontal: Sizes.spacing.md,
     fontSize: 16,
+    borderRadius: Sizes.radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.neutral[200],
+    backgroundColor: Colors.background.card,
+    color: Colors.text.primary,
+    textAlignVertical: 'center',
   },
   sendButton: {
     backgroundColor: Colors.vapapp.teal,
-    paddingHorizontal: Sizes.spacing.lg,
-    paddingVertical: Sizes.spacing.md,
-    minWidth: 60,
-    height: 52,
-    borderRadius: Sizes.radius.lg,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    minWidth: 44,
   },
 });
 

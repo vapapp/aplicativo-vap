@@ -1,9 +1,8 @@
 // Configuração da API do Dr. VAP
 export const DR_VAP_API_CONFIG = {
   // URL base - muda automaticamente entre dev e produção
-  baseURL: __DEV__
-    ? 'http://localhost:8000'  // Desenvolvimento - sua máquina local
-    : 'https://seudominio.com', // Produção - quando subir para servidor
+  baseURL: process.env.EXPO_PUBLIC_DR_VAP_API_URL || 'https://api.vap-app.com.br',
+  fallbackURL: process.env.EXPO_PUBLIC_DR_VAP_FALLBACK_URL || 'http://localhost:8000',
 
   // Timeout para requisições (30 segundos)
   timeout: 30000,
@@ -33,6 +32,12 @@ export const DR_VAP_API_CONFIG = {
 // Função helper para construir URLs completas
 export const buildApiUrl = (endpoint: keyof typeof DR_VAP_API_CONFIG.endpoints): string => {
   return `${DR_VAP_API_CONFIG.baseURL}${DR_VAP_API_CONFIG.endpoints[endpoint]}`;
+};
+
+// Função helper para construir URLs com fallback
+export const buildApiUrlWithFallback = (endpoint: keyof typeof DR_VAP_API_CONFIG.endpoints, useFallback: boolean = false): string => {
+  const baseUrl = useFallback ? DR_VAP_API_CONFIG.fallbackURL : DR_VAP_API_CONFIG.baseURL;
+  return `${baseUrl}${DR_VAP_API_CONFIG.endpoints[endpoint]}`;
 };
 
 // Configurações específicas para desenvolvimento
